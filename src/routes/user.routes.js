@@ -25,6 +25,6 @@ router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/reps").get(verifyJWT, verifyRole(["admin"]), fetchAllReps);
 router
   .route("/delete")
-  .get(verifyJWT, verifyRole(["admin , rep"], deleteUserById));
+  .get(verifyJWT, verifyRole(["admin" , "rep"], deleteUserById));
 
 export default router;
