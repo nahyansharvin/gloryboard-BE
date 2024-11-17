@@ -5,7 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 
 export const verifyJWT = asyncHandler(async (req, _, next) => {
   const token =
-    req.header("Authorization")?.replace("Bearer ", "") || req.cookies?.token;
+    req.  header("Authorization")?.replace("Bearer ", "") || req.cookies?.token;
   if (!token) {
     throw new ApiError(401, "Unauthorized");
   }
@@ -21,3 +21,12 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
   req.user = user;
   next();
 });
+
+export const verifyRole = (roles) => {
+  return (req, _, next) => {
+    if (!roles.includes(req.user.role)) {
+      throw new ApiError(403, "Forbidden");
+    }
+    next();
+  };
+}

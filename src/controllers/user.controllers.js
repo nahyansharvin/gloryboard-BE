@@ -62,14 +62,18 @@ const registerAdmin = asyncHandler(async (req, res) => {
 });
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, name, password, number, department, year_of_study , user_type } = req.body;
-
-  if (req.user.user_type !== "admin") {
-    throw new ApiError(403, "You are not authorized to create a user");
-  }
+  const {
+    email,
+    name,
+    password,
+    number,
+    department,
+    year_of_study,
+    user_type,
+  } = req.body;
 
   if (
-    [email, name, password, number , department , year_of_study , user_type ].some(
+    [email, name, password, number, department, year_of_study, user_type].some(
       (field) => !field || field.trim() === ""
     )
   ) {
@@ -94,14 +98,13 @@ const registerUser = asyncHandler(async (req, res) => {
       year_of_study,
     });
 
-    const createdUser = await User.findById(user._id).select("-password" , "-__v" , "-createdAt" , "-updatedAt");
+    const createdUser = await User.findById(user._id).select(
+      "-password -__v -createdAt -updatedAt"
+    );
 
     if (!createdUser) {
       throw new ApiError(500, "Failed to create user");
     }
-
-    console.log(createdUser);
-    console.log(createdUser.user_type);
 
     return res
       .status(201)
@@ -154,4 +157,36 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerAdmin , registerUser, loginUser };
+const fetchAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({}).select("-password");
+
+  if (!users) {
+    throw new ApiError(404, "No users found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, users, "Users fetched successfully"));
+});
+
+const deleteUserById = asyncHandler(async (req, res) => {
+  const { id } = req.query;
+
+  const user = await User.findByIdAndDelete(id);
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "User deleted successfully"));
+});
+
+export {
+  registerAdmin,
+  registerUser,
+  loginUser,
+  fetchAllUsers,
+  deleteUserById,
+};

@@ -4,16 +4,19 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import healthcheckRouter  from "./routes/healthcheck.routes.js";
 import userRouter from './routes/user.routes.js'
+import { errorHandler } from "./middlewares/error.middlewares.js";
+
 
 dotenv.config({
   path: "./.env",
 });
 
 const app = express();
+
 app.use(
   cors({
     origin: "*",
-    // credentials: true,
+    credentials: true,
   })
 );
 
@@ -21,18 +24,22 @@ app.use(
 // common middlewares
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: "32kb" }));
-app.use(express.static("public"));
+// app.use(express.static("public"));
 app.use(cookieParser());
 
 // Routes
-app.get("/test", (req, res) => {
-  res.send("Vercel deployment test successful");
-});
+
+
+
 
 app.use("/", healthcheckRouter);
 app.use("/api/v1/healthcheck", healthcheckRouter)
 app.use("/api/v1/users", userRouter);
 
-// app.use(errorHandler);
+app.use("*" , (req, res) => {
+  res.status(404).json({ message: "Route not found" });
+});
+
+app.use(errorHandler);
 
 export default app;
