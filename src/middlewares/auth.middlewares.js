@@ -5,28 +5,25 @@ import { ApiError } from "../utils/ApiError.js";
 
 export const verifyJWT = asyncHandler(async (req, _, next) => {
   const token =
-    req.  header("Authorization")?.replace("Bearer ", "") || req.cookies?.token;
+    req.header("Authorization")?.replace("Bearer ", "") || req.cookies?.token;
   if (!token) {
     throw new ApiError(401, "Unauthorized");
   }
 
   const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-  const user = await User.findById(decoded._id).select(
-    "-password "
-  );
+  const user = await User.findById(decoded._id).select("-password ");
   if (!user) {
     throw new ApiError(401, "Unauthorized");
   }
-
   req.user = user;
   next();
 });
 
 export const verifyRole = (roles) => {
   return (req, _, next) => {
-    if (!roles.includes(req.user.role)) {
-      throw new ApiError(403, "Forbidden");
+    if (!roles.includes(req.user.user_type)) {
+      throw new ApiError(403, "Forbidden access");
     }
     next();
   };
-}
+};

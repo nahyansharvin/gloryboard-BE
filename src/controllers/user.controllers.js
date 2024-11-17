@@ -115,6 +115,34 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
+const updateUser = asyncHandler(async (req, res) => {
+  const { id } = req.query;
+  const { email, name, number, department, year_of_study } = req.body;
+
+  if (
+    [email, name, number, department, year_of_study].some(
+      (field) => !field || field.trim() === ""
+    )
+  ) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    id,
+    { $set: { email, name, number, department, year_of_study } },
+    { new: true }
+  ).select("-password");
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res
+
+    .status(200)
+    .json(new ApiResponse(200, user, "User updated successfully"));
+});
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -157,8 +185,32 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
+const getCurrentUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select("-password");
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "User fetched successfully"));
+});
+
 const fetchAllUsers = asyncHandler(async (req, res) => {
   const users = await User.find({}).select("-password");
+
+  if (!users) {
+    throw new ApiError(404, "No users found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, users, "Users fetched successfully"));
+});
+
+const fetchAllReps = asyncHandler(async (req, res) => {
+  const users = await User.find({ user_type: "rep" }).select("-password");
 
   if (!users) {
     throw new ApiError(404, "No users found");
@@ -186,7 +238,10 @@ const deleteUserById = asyncHandler(async (req, res) => {
 export {
   registerAdmin,
   registerUser,
+  updateUser,
   loginUser,
+  getCurrentUser,
   fetchAllUsers,
+  fetchAllReps,
   deleteUserById,
 };
