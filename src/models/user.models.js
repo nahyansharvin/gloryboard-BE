@@ -3,11 +3,13 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const userSchema = new mongoose.Schema({
-  user_type: { type: String, enum: ["admin", "rep", "user"], required: true },
+  user_type: { type: String, enum: ["admin", "rep", "member"], required: true },
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   number: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  // password: { type: String, required: true },
+  // password is required for admin and rep
+  password: { type: String, required: function () { return this.user_type === "admin" || this.user_type === "rep"; } },
   department: { type: String, required: true }, // Department name (e.g., "Computer Science")
   year_of_study: { type: Number, required: true }, // Year of study (e.g., 1, 2, 3, 4)
   total_score: { type: Number, default: 0 }, // Running total score for the user
