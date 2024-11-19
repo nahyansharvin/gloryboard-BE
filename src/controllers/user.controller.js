@@ -72,9 +72,27 @@ const registerUser = asyncHandler(async (req, res) => {
     user_type,
   } = req.body;
 
+  // check which fields are required based on user_type
+
+  const requiredFields = {
+    admin: [
+      "email",
+      "name",
+      "password",
+      "number",
+      "department",
+      "year_of_study",
+    ],
+    rep: ["email", "name", "password", "number", "department", "year_of_study"],
+    member: ["email", "name", "number", "department", "year_of_study"],
+  };
+
+  console.log(requiredFields[user_type]);
+
   if (
-    [email, name, password, number, department, year_of_study, user_type].some(
-      (field) => !field || field.trim() === ""
+    requiredFields[user_type].some(
+      (field) =>
+        !field || field.trim() === "" || field === undefined || field === null
     )
   ) {
     throw new ApiError(400, "All fields are required");
@@ -99,7 +117,7 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     const createdUser = await User.findById(user._id).select(
-      "-password -__v -createdAt -updatedAt"
+      "-password -__v -created_at -updated_at"
     );
 
     if (!createdUser) {
@@ -221,6 +239,29 @@ const fetchAllReps = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, users, "Users fetched successfully"));
 });
 
+const fetchAllMembers = asyncHandler(async (req, res) => {
+  //  if user_type is rep , fetch memeber with the same department
+  //  if user_type is admin, fetch all members
+
+  let users;
+
+  if (req.user.user_type === "rep") {
+    users = await User.find({ department: req.user.department }).select(
+      "-password"
+    );
+  } else if (req.user.user_type === "admin") {
+    users = await User.find({ user_type: "member" }).select("-password");
+  }
+
+  if (!users) {
+    throw new ApiError(404, "No users found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, users, "Users fetched successfully"));
+});
+
 const deleteUserById = asyncHandler(async (req, res) => {
   const { id } = req.query;
 
@@ -243,5 +284,6 @@ export {
   getCurrentUser,
   fetchAllUsers,
   fetchAllReps,
+  fetchAllMembers,
   deleteUserById,
 };

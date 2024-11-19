@@ -8,7 +8,8 @@ import {
   fetchAllUsers,
   deleteUserById,
   fetchAllReps,
-} from "../controllers/user.controllers.js";
+  fetchAllMembers,
+} from "../controllers/user.controller.js";
 import { verifyJWT, verifyRole } from "../middlewares/auth.middlewares.js";
 
 const router = Router();
@@ -23,6 +24,7 @@ router.route("/register").post(verifyJWT, verifyRole(["admin"]), registerUser);
 router.route("/update").put(verifyJWT, verifyRole(["admin"]), updateUser);
 router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/reps").get(verifyJWT, verifyRole(["admin"]), fetchAllReps);
+router.route("/members").get(verifyJWT, verifyRole(["admin", "rep"]), fetchAllMembers);
 router.route("/delete").get(verifyJWT, verifyRole(["admin", "rep"]), deleteUserById);
 
 export default router;
