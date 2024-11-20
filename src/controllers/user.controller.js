@@ -91,8 +91,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   if (
     requiredFields[user_type].some(
-      (field) =>
-        !field || field.trim() === "" || field === undefined || field === null
+      (field) => !req.body[field] || req.body[field].trim() === ""
     )
   ) {
     throw new ApiError(400, "All fields are required");
