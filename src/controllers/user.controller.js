@@ -18,32 +18,33 @@ const generateAccessToken = async (userId) => {
 };
 
 const registerAdmin = asyncHandler(async (req, res) => {
-  const { email, name, password, number, department, year_of_study } = req.body;
+  const requiredFields = [
+    "name",
+    "password",
+    "gender",
+    "number",
+    "department",
+    "year_of_study",
+    "gender",
+  ];
 
-  if (
-    [email, name, password, number, department, year_of_study].some(
-      (field) => !field || field.trim() === ""
-    )
-  ) {
+  const { name, password, number, department, year_of_study } = req.body;
+
+  if (requiredFields.some((field) => !field || field.trim() === "")) {
     throw new ApiError(400, "All fields are required");
   }
 
   const existingUser = await User.findOne({
-    $or: [{ email }, { number }],
+    $or: [{ number }],
   });
   if (existingUser) {
-    throw new ApiError(409, "User with this username or email already exists");
+    throw new ApiError(409, "User with this number already exists");
   }
 
   try {
     const user = await User.create({
       user_type: "admin",
-      name,
-      email,
-      number,
-      password,
-      department,
-      year_of_study,
+      ...req.body,
     });
 
     const createdUser = await User.findById(user._id).select("-password");
@@ -62,32 +63,31 @@ const registerAdmin = asyncHandler(async (req, res) => {
 });
 
 const registerUser = asyncHandler(async (req, res) => {
-  const {
-    email,
-    name,
-    password,
-    number,
-    department,
-    year_of_study,
-    user_type,
-  } = req.body;
-
-  // check which fields are required based on user_type
-
   const requiredFields = {
-    admin: [
-      "email",
+    rep: [
+      "gender",
       "name",
       "password",
       "number",
       "department",
       "year_of_study",
     ],
-    rep: ["email", "name", "password", "number", "department", "year_of_study"],
-    member: ["email", "name", "number", "department", "year_of_study"],
+    member: ["gender", "name", "number", "department", "year_of_study"],
   };
 
-  console.log(requiredFields[user_type]);
+  const {
+    name,
+    password,
+    number,
+    department,
+    year_of_study,
+    user_type,
+    gender,
+  } = req.body;
+
+  if (!requiredFields[user_type]) {
+    throw new ApiError(400, "Invalid user type");
+  }
 
   if (
     requiredFields[user_type].some(
@@ -99,22 +99,15 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const existingUser = await User.findOne({
-    $or: [{ email }, { number }],
+    $or: [{ number }],
   });
+
   if (existingUser) {
-    throw new ApiError(409, "User with this username or email already exists");
+    throw new ApiError(409, "User with this number already exists");
   }
 
   try {
-    const user = await User.create({
-      user_type,
-      name,
-      email,
-      number,
-      password,
-      department,
-      year_of_study,
-    });
+    const user = await User.create(req.body);
 
     const createdUser = await User.findById(user._id).select(
       "-password -__v -created_at -updated_at"
@@ -135,10 +128,10 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.query;
-  const { email, name, number, department, year_of_study } = req.body;
+  const { name, number, department, year_of_study, gender } = req.body;
 
   if (
-    [email, name, number, department, year_of_study].some(
+    [name, number, department, year_of_study].some(
       (field) => !field || field.trim() === ""
     )
   ) {
@@ -147,7 +140,7 @@ const updateUser = asyncHandler(async (req, res) => {
 
   const user = await User.findByIdAndUpdate(
     id,
-    { $set: { email, name, number, department, year_of_study } },
+    { $set: { gender, name, number, department, year_of_study } },
     { new: true }
   ).select("-password");
 
@@ -162,13 +155,13 @@ const updateUser = asyncHandler(async (req, res) => {
 });
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { number, password } = req.body;
 
-  if (!email || !password) {
-    throw new ApiError(400, "Username and password are required");
+  if (!number || !password) {
+    throw new ApiError(400, "Number and password are required");
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ number });
   if (!user) {
     throw new ApiError(404, "User not found");
   }
@@ -216,7 +209,9 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const fetchAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({}).select("-password");
+  const users = await User.find({}).select(
+    "-password -__v -created_at -updated_at"
+  );
 
   if (!users) {
     throw new ApiError(404, "No users found");
@@ -228,7 +223,9 @@ const fetchAllUsers = asyncHandler(async (req, res) => {
 });
 
 const fetchAllReps = asyncHandler(async (req, res) => {
-  const users = await User.find({ user_type: "rep" }).select("-password");
+  const users = await User.find({ user_type: "rep" }).select(
+    "-password -__v -created_at -updated_at"
+  );
 
   if (!users) {
     throw new ApiError(404, "No users found");
@@ -240,17 +237,16 @@ const fetchAllReps = asyncHandler(async (req, res) => {
 });
 
 const fetchAllMembers = asyncHandler(async (req, res) => {
-  //  if user_type is rep , fetch memeber with the same department
-  //  if user_type is admin, fetch all members
-
   let users;
 
   if (req.user.user_type === "rep") {
     users = await User.find({ department: req.user.department }).select(
-      "-password"
+      "-password -__v -created_at -updated_at"
     );
   } else if (req.user.user_type === "admin") {
-    users = await User.find({ user_type: "member" }).select("-password");
+    users = await User.find({ user_type: "member" }).select(
+      "-password -__v -created_at -updated_at"
+    );
   }
 
   if (!users) {

@@ -3,7 +3,7 @@ import { User } from "../models/user.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 
-export const verifyJWT = asyncHandler(async (req, _, next) => {
+const verifyJWT = asyncHandler(async (req, _, next) => {
   const token =
     req.header("Authorization")?.replace("Bearer ", "") || req.cookies?.token;
   if (!token) {
@@ -19,7 +19,7 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
   next();
 });
 
-export const verifyRole = (roles) => {
+const verifyRole = (roles) => {
   return (req, _, next) => {
     if (!roles.includes(req.user.user_type)) {
       throw new ApiError(403, "Forbidden access");
@@ -27,3 +27,5 @@ export const verifyRole = (roles) => {
     next();
   };
 };
+
+export { verifyJWT, verifyRole };
