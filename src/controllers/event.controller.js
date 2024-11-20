@@ -1,107 +1,87 @@
-import { EventType } from "../models/eventType.models.js";
+import { Event } from "../models/event.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-const fetchAllEventTypes = asyncHandler(async (req, res, next) => {
-  const eventTypes = await EventType.find();
+const fetchAllEvents = asyncHandler(async (req, res, next) => {
+  const events = await Event.find();
 
-  if (!eventTypes) {
-    return next(new ApiError("No event types found", 404));
+  if (!events) {
+    return next(new ApiError("No events found", 404));
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, eventTypes, "Event types fetched successfully"));
+    .json(new ApiResponse(200, events, "Events fetched successfully"));
 });
 
-const createEventType = asyncHandler(async (req, res, next) => {
-  const {
-    name,
-    scores,
-    is_group = false,
-    is_onstage = true,
-    participant_count = 1,
-    helper_count = 0,
-  } = req.body;
+const createEvent = asyncHandler(async (req, res, next) => {
+  const { name, event_type } = req.body;
 
-  if (!name || !scores.first || !scores.second || !scores.third) {
-    return next(
-      new ApiError(
-        "Please provide name, scores.first, scores.second, and scores.third",
-        400
-      )
-    );
+  if (!name || !event_type) {
+    return next(new ApiError("Please provide name and eventTypeId", 400));
   }
 
-  const existingEventType = await EventType.findOne({
+  const existingEvent = await Event.findOne({
     name,
-    is_group,
-    is_onstage,
+    event_type,
   });
 
-  if (existingEventType) {
-    return next(new ApiError("Event type already exists", 409));
+  if (existingEvent) {
+    return next(new ApiError("Event already exists", 409));
   }
 
-  const eventType = await EventType.create({
+  const event = await Event.create({
     name,
-    participant_count,
-    helper_count,
-    is_group,
-    is_onstage,
-    scores,
+    event_type 
   });
 
-  const createdEventType = await EventType.findById(eventType._id);
+  const createdEvent = await Event.findById(event._id);
 
-  if (!createdEventType) {
-    return next(new ApiError("Failed to create event type", 500));
+  if (!createdEvent) {
+    return next(new ApiError("Failed to create event", 500));
   }
 
   return res
     .status(201)
-    .json(
-      new ApiResponse(201, createdEventType, "Event type created successfully")
-    );
+    .json(new ApiResponse(201, createdEvent, "Event created successfully"));
 });
 
-const updateEventType = asyncHandler(async (req, res, next) => {
+const updateEvent = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+    const { name, event_type } = req.body;
+
+    const event = await Event.findById(id);
+
+    if (!event) {
+        return next(new ApiError("Event not found", 404));
+    }
+
+    if (name) event.name = name;
+    if (event_type) event.event_type = event_type;
+
+    await event.save();
+
+    const updatedEvent = await Event.findById(id);
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updatedEvent, "Event updated successfully"));
+});
+
+
+const deleteEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const updateData = req.body;
 
-  const eventType = await EventType.findById(id);
+  const event = await Event.findByIdAndDelete(id);
 
-  if (!eventType) {
-    return next(new ApiError("Event type not found", 404));
+  if (!event) {
+    return next(new ApiError("Event not found", 404));
   }
-
-  Object.keys(updateData).forEach((key) => {
-    eventType[key] = updateData[key];
-  });
-
-  await eventType.save();
-
-  const updatedEventType = await EventType.findById(id);
 
   return res
     .status(200)
-    .json(new ApiResponse(200, updatedEventType, "Event type updated successfully"));
+    .json(new ApiResponse(200, {}, "Event deleted successfully"));
 });
 
-const deleteEventType = asyncHandler(async (req, res, next) => {
-  const { id } = req.params;
-
-  const eventType = await EventType.findByIdAndDelete(id);
-
-  if (!eventType) {
-    return next(new ApiError("Event type not found", 404));
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "Event type deleted successfully"));
-});
-
-export { fetchAllEventTypes, createEventType, updateEventType, deleteEventType };
-
+export { fetchAllEvents, createEvent , updateEvent , deleteEvent};
