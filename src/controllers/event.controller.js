@@ -18,10 +18,11 @@ const fetchAllEventTypes = asyncHandler(async (req, res, next) => {
 const createEventType = asyncHandler(async (req, res, next) => {
   const {
     name,
+    scores,
     is_group = false,
+    is_onstage = true,
     participant_count = 1,
     helper_count = 0,
-    scores,
   } = req.body;
 
   if (!name || !scores.first || !scores.second || !scores.third) {
@@ -36,6 +37,7 @@ const createEventType = asyncHandler(async (req, res, next) => {
   const existingEventType = await EventType.findOne({
     name,
     is_group,
+    is_onstage,
   });
 
   if (existingEventType) {
@@ -47,6 +49,7 @@ const createEventType = asyncHandler(async (req, res, next) => {
     participant_count,
     helper_count,
     is_group,
+    is_onstage,
     scores,
   });
 
@@ -63,4 +66,42 @@ const createEventType = asyncHandler(async (req, res, next) => {
     );
 });
 
-export { fetchAllEventTypes , createEventType };
+const updateEventType = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  const eventType = await EventType.findById(id);
+
+  if (!eventType) {
+    return next(new ApiError("Event type not found", 404));
+  }
+
+  Object.keys(updateData).forEach((key) => {
+    eventType[key] = updateData[key];
+  });
+
+  await eventType.save();
+
+  const updatedEventType = await EventType.findById(id);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedEventType, "Event type updated successfully"));
+});
+
+const deleteEventType = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const eventType = await EventType.findByIdAndDelete(id);
+
+  if (!eventType) {
+    return next(new ApiError("Event type not found", 404));
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Event type deleted successfully"));
+});
+
+export { fetchAllEventTypes, createEventType, updateEventType, deleteEventType };
+
