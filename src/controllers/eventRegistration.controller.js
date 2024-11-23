@@ -85,9 +85,9 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
 });
 
 const getEventRegistrationByEventId = asyncHandler(async (req, res, next) => {
-  const { event_id } = req.params;
+  const { id } = req.params;
 
-  const eventRegistration = await EventRegistration.find({ event: event_id })
+  const eventRegistration = await EventRegistration.find({ event: id })
   .populate({
     path: "event",
     select: "name event_type",
