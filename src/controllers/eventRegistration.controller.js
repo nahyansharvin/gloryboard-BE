@@ -17,11 +17,6 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
         new ApiError(400, "Each participant must have a valid user_id")
       );
     }
-    if (typeof participant.score !== "number") {
-      return next(
-        new ApiError(400, "Each participant must have a valid score")
-      );
-    }
   }
 
   if (!event || !participants || !helpers) {
@@ -124,6 +119,8 @@ const deleteEventRegistration = asyncHandler(async (req, res, next) => {
       )
     );
 });
+
+
 
 export {
   createEventRegistration,

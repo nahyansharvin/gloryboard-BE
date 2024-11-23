@@ -9,8 +9,19 @@ import {
   deleteUserById,
   fetchAllReps,
   fetchAllMembers,
+  fetchDepartments,
 } from "../controllers/user.controller.js";
+
+import {
+  fetchAllResults,
+  fetchResultById,
+  fetchResultByEventId,
+  fetchAllGroupResults,
+  fetchAllIndividualResults,
+} from "../controllers/result.controller.js";
+
 import { verifyJWT, verifyRole } from "../middlewares/auth.middlewares.js";
+import { DEPARTMENTS } from "../constants.js";
 
 const router = Router();
 
@@ -19,12 +30,26 @@ router.route("/registerAdmin").post(registerAdmin);
 router.route("/login").post(loginUser);
 router.route("/").get(fetchAllUsers);
 
+router.route("/results").get(fetchAllResults);
+router.route("/result/:id").get(fetchResultById);
+router.route("/result/event/:event_id").get(fetchResultByEventId);
+
+router.route("/results/group").get(fetchAllGroupResults);
+router.route("/results/single").get(fetchAllIndividualResults);
+
+
 // Protucted Router
 router.route("/register").post(verifyJWT, verifyRole(["admin"]), registerUser);
 router.route("/update").put(verifyJWT, verifyRole(["admin"]), updateUser);
 router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/reps").get(verifyJWT, verifyRole(["admin"]), fetchAllReps);
-router.route("/members").get(verifyJWT, verifyRole(["admin", "rep"]), fetchAllMembers);
-router.route("/delete").get(verifyJWT, verifyRole(["admin", "rep"]), deleteUserById);
+router
+  .route("/members")
+  .get(verifyJWT, verifyRole(["admin", "rep"]), fetchAllMembers);
+router
+  .route("/delete")
+  .get(verifyJWT, verifyRole(["admin", "rep"]), deleteUserById);
+
+router.route("/departments").get(verifyJWT, verifyRole(["admin", "rep"]), fetchDepartments);
 
 export default router;

@@ -21,6 +21,12 @@ import {
   deleteEventRegistration,
 } from "../controllers/eventRegistration.controller.js";
 
+import {
+  createResult,
+  updateResult,
+  deleteResult,
+} from "../controllers/result.controller.js";
+
 const router = Router();
 
 router.use(verifyJWT, verifyRole(["admin"]));
@@ -44,5 +50,11 @@ router.route("/event-registration").post(createEventRegistration);
 router.route("/event-registration/:id").get(getEventRegistrationById);
 router.route("/event-registration/update/:id").patch(updateEventRegistration);
 router.route("/event-registration/delete/:id").delete(deleteEventRegistration);
+
+// Result routes
+
+router.route("/result").post(createResult);
+router.route("/result/update/:id").put(updateResult);
+router.route("/result/delete/:id").delete(deleteResult);
 
 export default router;

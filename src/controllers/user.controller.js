@@ -2,7 +2,7 @@ import { User } from "../models/user.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-
+import { DEPARTMENTS } from "../constants.js";
 const generateAccessToken = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -16,6 +16,7 @@ const generateAccessToken = async (userId) => {
     throw new ApiError(500, "Failed to generate tokens");
   }
 };
+
 
 const registerAdmin = asyncHandler(async (req, res) => {
   const requiredFields = [
@@ -91,7 +92,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   if (
     requiredFields[user_type].some(
-      (field) => !req.body[field] || req.body[field].trim() === ""
+      (field) => !req.body[field] || req.body[field].toString().trim() === ""
     )
   ) {
     throw new ApiError(400, "All fields are required");
@@ -271,6 +272,10 @@ const deleteUserById = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, null, "User deleted successfully"));
 });
 
+const fetchDepartments = asyncHandler(async (req, res, next) => {
+  res.status(200).json(new ApiResponse(200, DEPARTMENTS, "Departments found"));
+});
+
 export {
   registerAdmin,
   registerUser,
@@ -281,4 +286,5 @@ export {
   fetchAllReps,
   fetchAllMembers,
   deleteUserById,
+  fetchDepartments,
 };

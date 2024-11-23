@@ -4,7 +4,12 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 const fetchAllEvents = asyncHandler(async (req, res, next) => {
-  const events = await Event.find();
+  const events = await Event.find()
+    .populate({
+      path: "event_type",
+      select: "-__v -created_at -updated_at",
+    })
+    .select("-__v");
 
   if (!events) {
     return next(new ApiError("No events found", 404));
@@ -33,7 +38,7 @@ const createEvent = asyncHandler(async (req, res, next) => {
 
   const event = await Event.create({
     name,
-    event_type 
+    event_type,
   });
 
   const createdEvent = await Event.findById(event._id);
@@ -48,27 +53,28 @@ const createEvent = asyncHandler(async (req, res, next) => {
 });
 
 const updateEvent = asyncHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const { name, event_type } = req.body;
+  const { id } = req.params;
+  const { name, event_type } = req.body;
 
-    const event = await Event.findById(id);
+  const event = await Event.findById(id);
 
-    if (!event) {
-        return next(new ApiError("Event not found", 404));
-    }
+  if (!event) {
+    return next(new ApiError("Event not found", 404));
+  }
 
-    if (name) event.name = name;
-    if (event_type) event.event_type = event_type;
+  if (name) event.name = name;
+  if (event_type) event.event_type = event_type;
 
-    await event.save();
+  await event.save();
 
-    const updatedEvent = await Event.findById(id);
+  const updatedEvent = await Event.findById(id)
+    .populate("event_type")
+    .select("-__v -created_at -updated_at");
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, updatedEvent, "Event updated successfully"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedEvent, "Event updated successfully"));
 });
-
 
 const deleteEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -84,4 +90,4 @@ const deleteEvent = asyncHandler(async (req, res, next) => {
     .json(new ApiResponse(200, {}, "Event deleted successfully"));
 });
 
-export { fetchAllEvents, createEvent , updateEvent , deleteEvent};
+export { fetchAllEvents, createEvent, updateEvent, deleteEvent };
