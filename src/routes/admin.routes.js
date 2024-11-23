@@ -17,6 +17,7 @@ import {
   getAllEventRegistrations,
   createEventRegistration,
   getEventRegistrationById,
+  getEventRegistrationByEventId,
   updateEventRegistration,
   deleteEventRegistration,
 } from "../controllers/eventRegistration.controller.js";
@@ -48,6 +49,7 @@ router.route("/events/delete/:id").delete(deleteEvent);
 router.route("/event-registration").get(getAllEventRegistrations);
 router.route("/event-registration").post(createEventRegistration);
 router.route("/event-registration/:id").get(getEventRegistrationById);
+router.route("/event-registration/event/:id").get(getEventRegistrationByEventId);
 router.route("/event-registration/update/:id").patch(updateEventRegistration);
 router.route("/event-registration/delete/:id").delete(deleteEventRegistration);
 

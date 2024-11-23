@@ -84,6 +84,24 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
     );
 });
 
+const getEventRegistrationByEventId = asyncHandler(async (req, res, next) => {
+  const { event_id } = req.params;
+
+  const eventRegistration = await EventRegistration.find({ event: event_id })
+    .populate({ path: "event", select: "name event_type" })
+    .populate("participants.user", "name number department year_of_study")
+    .populate("helpers.user", "name")
+    .select("-__v -created_at -updated_at");
+
+  if (!eventRegistration) {
+    return next(new ApiError(404, "Event registration not found"));
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, eventRegistration, "Event registration found"));
+});
+
 // Get event registration by ID
 const getEventRegistrationById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -175,6 +193,7 @@ export {
   createEventRegistration,
   getAllEventRegistrations,
   getEventRegistrationById,
+  getEventRegistrationByEventId,
   updateEventRegistration,
   deleteEventRegistration,
 };
