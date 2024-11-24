@@ -50,7 +50,7 @@ const fetchResultByEventId = async (event_id) => {
     // Step 1: Match specific event ID
     {
       $match: {
-        event: new mongoose.Types.ObjectId(event_id),
+        event: mongoose.Types.ObjectId.createFromHexString(event_id),
       },
     },
     // Step 2: Lookup event details only once and project necessary fields early
@@ -67,21 +67,39 @@ const fetchResultByEventId = async (event_id) => {
         path: "$event",
       },
     },
-    // Step 3: Reduce document size by excluding unnecessary fields early
+    // Step 3: Lookup event type to fetch is_onstage
+    {
+      $lookup: {
+        from: "eventtypes", // Replace with the actual name of your event type collection
+        localField: "event.event_type",
+        foreignField: "_id",
+        as: "event.event_type_details",
+      },
+    },
+    {
+      $unwind: {
+        path: "$event.event_type_details",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    // Step 4: Reduce document size by excluding unnecessary fields early
     {
       $project: {
         "event.created_at": 0,
         "event.updated_at": 0,
         "event.__v": 0,
+        "event.event_type_details.created_at": 0,
+        "event.event_type_details.updated_at": 0,
+        "event.event_type_details.__v": 0,
       },
     },
-    // Step 4: Unwind the winningRegistrations array
+    // Step 5: Unwind the winningRegistrations array
     {
       $unwind: {
         path: "$winningRegistrations",
       },
     },
-    // Step 5: Lookup event registrations once
+    // Step 6: Lookup event registrations once
     {
       $lookup: {
         from: "eventregistrations",
@@ -96,7 +114,7 @@ const fetchResultByEventId = async (event_id) => {
         preserveNullAndEmptyArrays: true,
       },
     },
-    // Step 6: Lookup user details once for participants and helpers
+    // Step 7: Lookup user details once for participants and helpers
     {
       $lookup: {
         from: "users",
@@ -113,7 +131,7 @@ const fetchResultByEventId = async (event_id) => {
         as: "winningRegistrations.eventRegistration.helpers.user",
       },
     },
-    // Step 7: Project only necessary fields and exclude unnecessary fields
+    // Step 8: Project only necessary fields and exclude unnecessary fields
     {
       $project: {
         "winningRegistrations.eventRegistration.participants.user.user_type": 0,
@@ -130,24 +148,26 @@ const fetchResultByEventId = async (event_id) => {
         "winningRegistrations.eventRegistration.event": 0,
       },
     },
-    // Step 8: Group by event and aggregate the winning registrations
+    // Step 9: Group by event and aggregate the winning registrations
     {
       $group: {
         _id: "$event._id",
         name: { $first: "$event.name" },
+        is_onstage: { $first: "$event.event_type_details.is_onstage" },
         winningRegistrations: { $push: "$winningRegistrations" },
       },
     },
-    // Step 9: Final projection to ensure clean output
+    // Step 10: Final projection to ensure clean output
     {
       $project: {
         "winningRegistrations._id": 1,
         "winningRegistrations.position": 1,
         "winningRegistrations.eventRegistration": 1,
         name: 1,
+        is_onstage: 1,
       },
     },
-  ];
+  ]
 
   const result = await Result.aggregate(aggregate);
 
@@ -499,11 +519,10 @@ const fetchAllIndividualResults = async () => {
     },
     {
       $addFields: {
-        // Merge fields from eventDetails into the top-level
+      
         name: "$eventDetails.name",
         eventType: "$eventTypeDetails.name",
-        // date: '$eventDetails.date', // Example field from eventDetails
-        type: "$eventTypeDetails.type", // Example field from eventTypeDetails
+        type: "$eventTypeDetails.type",
         isGroup: "$eventTypeDetails.is_group",
       },
     },
