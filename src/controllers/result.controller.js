@@ -112,8 +112,8 @@ const fetchAllIndividualResults = asyncHandler(async (req, res, next) => {
   res.status(200).json(new ApiResponse(200, results, "Results found"));
 });
 
-const fetchAllGroupResults = asyncHandler(async (req, res, next) => {
-  const results = await resultServices.fetchAllGroupResults();
+const fetchLeaderboard = asyncHandler(async (req, res, next) => {
+  const results = await resultServices.fetchLeaderboardData();
 
   if (!results) {
     return next(new ApiError(404, "No results found"));
@@ -130,5 +130,5 @@ export {
   updateResult,
   deleteResult,
   fetchAllIndividualResults,
-  fetchAllGroupResults,
+  fetchLeaderboard,
 };

@@ -1,40 +1,42 @@
 import mongoose from "mongoose";
 import { Result } from "../models/result.models.js";
+import { ApiError } from "../utils/ApiError.js";
 import { Event } from "../models/event.models.js";
 import { EventRegistration } from "../models/eventRegistration.models.js";
 import { EventType } from "../models/eventType.models.js";
-import { POSITIONS } from "../constants.js";
+import { DEPARTMENTS, POSITIONS } from "../constants.js";
 import { User } from "../models/user.models.js";
 
 const fetchAllResults = async () => {
   try {
     // Fetch all results, exclude specific fields from the result document and populated collections
     const results = await Result.find()
-      .select('-created_at -updated_at -created_by -updated_by -__v') // Exclude from result document
+      .select("-created_at -updated_at -created_by -updated_by -__v") // Exclude from result document
       .populate({
-        path: 'event',
-        select: '-created_at -updated_at -created_by -updated_by -__v', // Exclude from Event document
+        path: "event",
+        select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from Event document
         populate: {
-          path: 'event_type',
-          model: 'EventType',
-          select: '-scores -created_at -updated_at -created_by -updated_by -__v ', // Exclude from EventType document
+          path: "event_type",
+          model: "EventType",
+          select:
+            "-scores -created_at -updated_at -created_by -updated_by -__v ", // Exclude from EventType document
         },
       })
       .populate({
-        path: 'winningRegistrations.eventRegistration',
-        select: '-created_at -updated_at -created_by -updated_by -__v', // Exclude from EventRegistration document
+        path: "winningRegistrations.eventRegistration",
+        select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from EventRegistration document
         populate: {
-          path: 'participants.user',
-          model: 'User',
-          select: '-created_at -updated_at -created_by -updated_by -__v', // Exclude from User document
+          path: "participants.user",
+          model: "User",
+          select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from User document
         },
         populate: {
-          path: 'helpers.user',  // Add population for helpers
-          model: 'User',
-          select: '-created_at -updated_at -created_by -updated_by -__v', // Exclude from User document for helpers
+          path: "helpers.user", // Add population for helpers
+          model: "User",
+          select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from User document for helpers
         },
       })
-      .populate('updated_by', 'name') // Exclude specific fields from the updated_by user document
+      .populate("updated_by", "name") // Exclude specific fields from the updated_by user document
       .exec();
 
     return results;
@@ -188,6 +190,8 @@ const createResult = async (event_id, winningRegistrations, user) => {
         throw new Error("Invalid position provided");
       }
 
+      eventRegistration.score += positionScore;
+
       if (isGroupEvent) {
         console.log("Event is group event");
         continue;
@@ -199,8 +203,6 @@ const createResult = async (event_id, winningRegistrations, user) => {
         if (!user) {
           throw new Error("User not found");
         }
-
-        participant.score += positionScore;
 
         user.total_score += positionScore;
 
@@ -423,220 +425,142 @@ const updateResult = async (
 };
 
 const fetchAllIndividualResults = async () => {
-
   const aggregate = [
     {
       $lookup: {
         from: "events",
         localField: "event",
         foreignField: "_id",
-        as: "eventDetails"
-      }
+        as: "eventDetails",
+      },
     },
     {
       $unwind: {
-        path: "$eventDetails"
-      }
+        path: "$eventDetails",
+      },
     },
     {
       $lookup: {
         from: "eventtypes",
         localField: "eventDetails.event_type",
         foreignField: "_id",
-        as: "eventTypeDetails"
-      }
+        as: "eventTypeDetails",
+      },
     },
     {
       $unwind: {
-        path: "$eventTypeDetails"
-      }
+        path: "$eventTypeDetails",
+      },
     },
     {
       $match: {
-        "eventTypeDetails.is_group": false
-      }
+        "eventTypeDetails.is_group": false,
+      },
     },
     {
       $lookup: {
         from: "eventregistrations",
-        localField:
-          "winningRegistrations.eventRegistration",
+        localField: "winningRegistrations.eventRegistration",
         foreignField: "_id",
-        as: "winningRegistrationDetails"
-      }
+        as: "winningRegistrationDetails",
+      },
     },
     {
       $unwind: {
         path: "$winningRegistrationDetails",
-        preserveNullAndEmptyArrays: true
-      }
+        preserveNullAndEmptyArrays: true,
+      },
     },
     {
       $lookup: {
         from: "users",
-        localField:
-          "winningRegistrationDetails.participants.user",
+        localField: "winningRegistrationDetails.participants.user",
         foreignField: "_id",
-        as: "participantDetails"
-      }
+        as: "participantDetails",
+      },
     },
     {
       $group: {
         _id: "$event",
         eventDetails: { $first: "$eventDetails" },
         eventTypeDetails: {
-          $first: "$eventTypeDetails"
+          $first: "$eventTypeDetails",
         },
         winningRegistrations: {
           $push: {
-            registrations:
-              "$winningRegistrationDetails",
+            registrations: "$winningRegistrationDetails",
             participants: "$participantDetails",
             position: {
-              $arrayElemAt: [
-                "$winningRegistrations.position",
-                0
-              ]
-            }
-          }
-        }
-      }
+              $arrayElemAt: ["$winningRegistrations.position", 0],
+            },
+          },
+        },
+      },
     },
     {
       $addFields: {
         // Merge fields from eventDetails into the top-level
         name: "$eventDetails.name",
-        eventType : "$eventTypeDetails.name",
+        eventType: "$eventTypeDetails.name",
         // date: '$eventDetails.date', // Example field from eventDetails
         type: "$eventTypeDetails.type", // Example field from eventTypeDetails
-        isGroup: "$eventTypeDetails.is_group"
-      }
+        isGroup: "$eventTypeDetails.is_group",
+      },
     },
     {
       $project: {
         _id: 0,
         eventDetails: 0,
         eventTypeDetails: 0,
-      }
-    }
+      },
+    },
   ];
 
   const results = await Result.aggregate(aggregate);
 
   return results;
-
 };
 
-const fetchAllGroupResults = async () => {
-  const aggregate = [
-    {
-      $lookup: {
-        from: "events",
-        localField: "event",
-        foreignField: "_id",
-        as: "eventDetails"
-      }
-    },
-    {
-      $unwind: {
-        path: "$eventDetails"
-      }
-    },
-    {
-      $lookup: {
-        from: "eventtypes",
-        localField: "eventDetails.event_type",
-        foreignField: "_id",
-        as: "eventTypeDetails"
-      }
-    },
-    {
-      $unwind: {
-        path: "$eventTypeDetails"
-      }
-    },
-    {
-      $match: {
-        "eventTypeDetails.is_group": true
-      }
-    },
-    {
-      $lookup: {
-        from: "eventregistrations",
-        localField:
-          "winningRegistrations.eventRegistration",
-        foreignField: "_id",
-        as: "winningRegistrationDetails"
-      }
-    },
-    {
-      $unwind: {
-        path: "$winningRegistrationDetails",
-        preserveNullAndEmptyArrays: true
-      }
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField:
-          "winningRegistrationDetails.participants.user",
-        foreignField: "_id",
-        as: "participantDetails"
-      }
-    },
-    {
-      $group: {
-        _id: "$event",
-        eventDetails: { $first: "$eventDetails" },
-        eventTypeDetails: {
-          $first: "$eventTypeDetails"
+const fetchLeaderboardData = async () => {
+  try {
+    const topScorers = await User.find()
+      .sort({ total_score: -1 })
+      .limit(10)
+      .select("-created_at -updated_at -__v -user_type -_id");
+
+    const departmentScores = await User.aggregate([
+      {
+        // group it by department and sum the total_score and sort in descending order
+        $group: {
+          _id: "$department",
+          total_score: { $sum: "$total_score" },
         },
-        winningRegistrations: {
-          $push: {
-            registrations:
-              "$winningRegistrationDetails",
-            participants: "$participantDetails",
-            position: {
-              $arrayElemAt: [
-                "$winningRegistrations.position",
-                0
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      $addFields: {
-        // Merge fields from eventDetails into the top-level
-        name: "$eventDetails.name",
-        eventType : "$eventTypeDetails.name",
-        // date: '$eventDetails.date', // Example field from eventDetails
-        type: "$eventTypeDetails.type", // Example field from eventTypeDetails
-        isGroup: "$eventTypeDetails.is_group"
-      }
-    },
-    {
-      $project: {
-        _id: 0,
-        eventDetails: 0,
-        eventTypeDetails: 0,
-      }
+      },
+    ]);
+
+    const categorizedScores = [];
+
+    for (const [key, departmentList] of Object.entries(DEPARTMENTS)) {
+      const totalScore = departmentScores
+        .filter((department) => departmentList.includes(department._id))
+        .reduce((acc, curr) => acc + curr.total_score, 0);
+
+      categorizedScores.push({
+        department: key,
+        total_score: totalScore,
+      });
     }
-  ]
 
-  const results = await Result.aggregate(aggregate);
-
-  if (!results) {
-    throw new Error("No group results found");
+    return {
+      topScorers,
+      departmentScores,
+      categorizedScores,
+    };
+  } catch (error) {
+    console.error(error.message);
+    new ApiError(500, "Failed to fetch leaderboard data");
   }
-
-  return results;
-
-}
-
-
-
+};
 
 export const resultServices = {
   fetchAllResults,
@@ -645,5 +569,5 @@ export const resultServices = {
   updateResult,
   deleteResult,
   fetchAllIndividualResults,
-  fetchAllGroupResults
+  fetchLeaderboardData,
 };
