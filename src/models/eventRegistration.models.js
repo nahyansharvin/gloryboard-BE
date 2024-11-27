@@ -6,7 +6,6 @@ const eventRegistrationSchema = new Schema({
   participants: [
     {
       user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-      score: { type: Number, default: 0 }, // Score obtained in this event by the user
     },
   ],
   helpers: [
@@ -23,8 +22,6 @@ eventRegistrationSchema.pre("save", function (next) {
   this.updated_at = Date.now();
   next();
 });
-
-
 
 export const EventRegistration = mongoose.model(
   "EventRegistration",
