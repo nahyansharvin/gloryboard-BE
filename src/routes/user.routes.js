@@ -43,7 +43,7 @@ router.route("/results/single").get(fetchAllIndividualResults);
 router.route("/results/leaderboard").get(fetchLeaderboard);
 
 // Protucted Router
-router.route("/register").post(verifyJWT, verifyRole(["admin"]), registerUser);
+router.route("/register").post(verifyJWT, verifyRole(["admin" , "rep"]), registerUser);
 router.route("/update").put(verifyJWT, verifyRole(["admin"]), updateUser);
 router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/reps").get(verifyJWT, verifyRole(["admin"]), fetchAllReps);
