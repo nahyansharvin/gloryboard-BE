@@ -10,7 +10,12 @@ const verifyJWT = asyncHandler(async (req, _, next) => {
     throw new ApiError(401, "Unauthorized");
   }
 
-  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+  try {
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+  } catch (error) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
   const user = await User.findById(decoded._id).select("-password ");
   if (!user) {
     throw new ApiError(401, "Unauthorized");
