@@ -185,6 +185,15 @@ const createResult = async (event_id, winningRegistrations, user) => {
       throw new Error("Event not found");
     }
 
+    // if result for event already exists, throw an error
+    const existingResult = await Result
+      .findOne({ event: event_id })
+      .session(session);
+
+    if (existingResult) {
+      throw new Error("Result already exists for this event");
+    }
+
     const eventType = await EventType.findById(event.event_type).session(
       session
     );
