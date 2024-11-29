@@ -25,16 +25,24 @@ const fetchAllResults = async () => {
       .populate({
         path: "winningRegistrations.eventRegistration",
         select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from EventRegistration document
-        populate: {
-          path: "participants.user",
-          model: "User",
-          select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from User document
-        },
-        populate: {
-          path: "helpers.user", // Add population for helpers
-          model: "User",
-          select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from User document for helpers
-        },
+        populate: [
+          {
+            path: "participants",
+            populate: {
+              path: "user",
+              model: "User",
+              select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from User document
+            },
+          },
+          {
+            path: "helpers",
+            populate: {
+              path: "user",
+              model: "User",
+              select: "-created_at -updated_at -created_by -updated_by -__v", // Exclude from User document for helpers
+            },
+          },
+        ],
       })
       .populate("updated_by", "name") // Exclude specific fields from the updated_by user document
       .exec();
@@ -186,9 +194,9 @@ const createResult = async (event_id, winningRegistrations, user) => {
     }
 
     // if result for event already exists, throw an error
-    const existingResult = await Result
-      .findOne({ event: event_id })
-      .session(session);
+    const existingResult = await Result.findOne({ event: event_id }).session(
+      session
+    );
 
     if (existingResult) {
       throw new Error("Result already exists for this event");
@@ -267,7 +275,7 @@ const deleteResult = async (resultId) => {
   session.startTransaction();
   try {
     // Fetch the result document
-    if (!resultId) throw new Error("Result ID is required");  
+    if (!resultId) throw new Error("Result ID is required");
     const result = await Result.findById(resultId).session(session);
     if (!result) throw new Error(`Result not found for ID: ${resultId}`);
     const event = await Event.findById(result.event).session(session);
