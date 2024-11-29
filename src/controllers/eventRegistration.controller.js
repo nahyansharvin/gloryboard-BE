@@ -7,8 +7,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const createEventRegistration = asyncHandler(async (req, res, next) => {
   const { event, group_name, participants, helpers } = req.body;
 
-  if (!Array.isArray(participants) || participants.length === 0 || !event || !group_name) {
-    return next(new ApiError(400, "Please provide all required fields"));
+  if (!Array.isArray(participants) || participants.length === 0 ) {
+    return next(new ApiError(400, "Participants must be a non-empty array"));
   }
 
   for (const participant of participants) {
@@ -19,7 +19,7 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
     }
   }
 
-  if (!event || !participants || !helpers) {
+  if (!event || !participants) {
     return next(new ApiError(400, "Please provide all required fields"));
   }
 
