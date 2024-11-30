@@ -20,7 +20,10 @@ import {
   fetchLeaderboard,
 } from "../controllers/result.controller.js";
 
-import { fetchAllEvents } from "../controllers/event.controller.js";
+import {
+  fetchAllEvents,
+  fetchResultPublishedEvents,
+} from "../controllers/event.controller.js";
 
 import { verifyJWT, verifyRole } from "../middlewares/auth.middlewares.js";
 import { DEPARTMENTS } from "../constants.js";
@@ -33,6 +36,7 @@ router.route("/login").post(loginUser);
 router.route("/").get(fetchAllUsers);
 
 router.route("/events").get(fetchAllEvents);
+router.route("/events/resultPublished").get(fetchResultPublishedEvents);
 
 router.route("/results").get(fetchAllResults);
 router.route("/result/:id").get(fetchResultById);
@@ -43,7 +47,9 @@ router.route("/results/single").get(fetchAllIndividualResults);
 router.route("/results/leaderboard").get(fetchLeaderboard);
 
 // Protucted Router
-router.route("/register").post(verifyJWT, verifyRole(["admin" , "rep"]), registerUser);
+router
+  .route("/register")
+  .post(verifyJWT, verifyRole(["admin", "rep"]), registerUser);
 router.route("/update").put(verifyJWT, verifyRole(["admin"]), updateUser);
 router.route("/me").get(verifyJWT, getCurrentUser);
 router.route("/reps").get(verifyJWT, verifyRole(["admin"]), fetchAllReps);

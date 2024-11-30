@@ -2,6 +2,7 @@ import { Event } from "../models/event.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Result } from "../models/result.models.js";
 
 const fetchAllEvents = asyncHandler(async (req, res, next) => {
   const events = await Event.find()
@@ -19,6 +20,40 @@ const fetchAllEvents = asyncHandler(async (req, res, next) => {
     .status(200)
     .json(new ApiResponse(200, events, "Events fetched successfully"));
 });
+
+const fetchResultPublishedEvents = asyncHandler(async (req, res, next) => {
+  
+  const aggregate = [
+    {
+      $lookup: {
+        from: "events",
+        localField: "event",
+        foreignField: "_id",
+        as: "eventDetails",
+      },
+    },
+    {
+      $unwind: "$eventDetails",
+    },
+    {
+      $group: {
+        _id: "$eventDetails._id",
+        name: { $first: "$eventDetails.name" },
+      },
+    },
+  ];
+
+  const events = await Result.aggregate(aggregate);
+
+  if (!events) { 
+    return next(new ApiError(404, "No events found"));
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, events, "Events fetched successfully"));
+});
+
 
 const createEvent = asyncHandler(async (req, res, next) => {
   const { name, event_type } = req.body;
@@ -90,4 +125,4 @@ const deleteEvent = asyncHandler(async (req, res, next) => {
     .json(new ApiResponse(200, {}, "Event deleted successfully"));
 });
 
-export { fetchAllEvents, createEvent, updateEvent, deleteEvent };
+export { fetchAllEvents,fetchResultPublishedEvents, createEvent, updateEvent, deleteEvent };
