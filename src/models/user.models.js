@@ -5,11 +5,8 @@ import jwt from "jsonwebtoken";
 const userSchema = new mongoose.Schema({
   user_type: { type: String, enum: ["admin", "rep", "member"], required: true },
   name: { type: String, required: true },
-  // email: { type: String, required: true, unique: true },
   gender: { type: String, required: true, enum: ["male", "female", "other"] },
   number: { type: String, required: true, unique: true },
-  // password: { type: String, required: true },
-  // password is required for admin and rep
   password: {
     type: String,
     required: function () {
