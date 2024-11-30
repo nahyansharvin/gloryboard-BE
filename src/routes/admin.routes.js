@@ -30,7 +30,7 @@ import {
 
 const router = Router();
 
-router.use(verifyJWT, verifyRole(["admin"]));
+router.use(verifyJWT, verifyRole(["admin" , "rep"]));
 
 // Event Type routes
 router.route("/event-type").get(fetchAllEventTypes);
