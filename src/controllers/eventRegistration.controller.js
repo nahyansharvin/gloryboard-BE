@@ -1,4 +1,5 @@
 import { EventRegistration } from "../models/eventRegistration.models.js";
+import { Event } from "../models/event.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -7,7 +8,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const createEventRegistration = asyncHandler(async (req, res, next) => {
   const { event, group_name, participants, helpers } = req.body;
 
-  if (!Array.isArray(participants) || participants.length === 0 ) {
+  if (!Array.isArray(participants) || participants.length === 0) {
     return next(new ApiError(400, "Participants must be a non-empty array"));
   }
 
@@ -23,30 +24,30 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, "Please provide all required fields"));
   }
 
-  const newEvent = await EventRegistration.create({
-    event,
-    group_name,
-    participants,
-    helpers,
-  });
+  const eventDetails = await Event.findById(event).populate("event_type");
+  const is_group = eventDetails.event_type.is_group;
 
-  if (!newEvent) {
-    return next(new ApiError(500, "Failed to create event registration"));
+
+  let addedEvent;
+
+  if (is_group) {
+    addedEvent = await EventRegistration.create({
+      event,
+      group_name,
+      participants,
+      helpers,
+    });
+  } else {
+    addedEvent = [];
+    for (const participant of participants) {
+      const individualEvent = await EventRegistration.create({
+        event,
+        participants: [participant],
+        helpers,
+      });
+      addedEvent.push(individualEvent);
+    }
   }
-
-  const addedEvent = await EventRegistration.findById(newEvent._id)
-    .populate({
-      path: "event",
-      select: "name event_type",
-      populate: {
-        path: "event_type",
-        select: "name",
-      },
-    })
-    .populate("participants.user", "name number department year_of_study")
-    .populate("helpers.user", "name")
-    .select("-__v -created_at -updated_at");
-
   res
     .status(201)
     .json(
@@ -60,6 +61,8 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
 
 // Get all event registrations
 const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
+  const { user_type, department } = req.user;
+
   const eventRegistrations = await EventRegistration.find()
     .populate({
       path: "event",
@@ -88,17 +91,17 @@ const getEventRegistrationByEventId = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const eventRegistration = await EventRegistration.find({ event: id })
-  .populate({
-    path: "event",
-    select: "name event_type",
-    populate: {
-      path: "event_type",
-      select: "name is_group",
-    },
-  })
-  .populate("participants.user", "name number department year_of_study")
-  .populate("helpers.user", "name")
-  .select("-__v -created_at -updated_at");
+    .populate({
+      path: "event",
+      select: "name event_type",
+      populate: {
+        path: "event_type",
+        select: "name is_group",
+      },
+    })
+    .populate("participants.user", "name number department year_of_study")
+    .populate("helpers.user", "name")
+    .select("-__v -created_at -updated_at");
 
   if (!eventRegistration) {
     return next(new ApiError(404, "Event registration not found"));
@@ -114,17 +117,17 @@ const getEventRegistrationById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const eventRegistration = await EventRegistration.findById(id)
-  .populate({
-    path: "event",
-    select: "name event_type",
-    populate: {
-      path: "event_type",
-      select: "name is_group",
-    },
-  })
-  .populate("participants.user", "name number department year_of_study")
-  .populate("helpers.user", "name")
-  .select("-__v -created_at -updated_at");
+    .populate({
+      path: "event",
+      select: "name event_type",
+      populate: {
+        path: "event_type",
+        select: "name is_group",
+      },
+    })
+    .populate("participants.user", "name number department year_of_study")
+    .populate("helpers.user", "name")
+    .select("-__v -created_at -updated_at");
 
   if (!eventRegistration) {
     return next(new ApiError(404, "Event registration not found"));
@@ -153,17 +156,17 @@ const updateEventRegistration = asyncHandler(async (req, res, next) => {
   }
 
   const updatedEvent = await EventRegistration.findById(updatedEvent._id)
-  .populate({
-    path: "event",
-    select: "name event_type",
-    populate: {
-      path: "event_type",
-      select: "name is_group",
-    },
-  })
-  .populate("participants.user", "name number department year_of_study")
-  .populate("helpers.user", "name")
-  .select("-__v -created_at -updated_at");
+    .populate({
+      path: "event",
+      select: "name event_type",
+      populate: {
+        path: "event_type",
+        select: "name is_group",
+      },
+    })
+    .populate("participants.user", "name number department year_of_study")
+    .populate("helpers.user", "name")
+    .select("-__v -created_at -updated_at");
   if (!event) {
     return next(new ApiError(404, "Event registration not found"));
   }
