@@ -290,9 +290,7 @@ const deleteResult = async (resultId) => {
     const isGroupEvent = eventType.is_group;
     // Revert participant and user scores for non-group events
     for (const registration of result.winningRegistrations) {
-      const eventRegistration = await EventRegistration.findById(
-        registration.eventRegistration
-      ).session(session);
+      const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
       if (!eventRegistration) {
         throw new Error(
           `Event registration not found for ID: ${registration.eventRegistration}`
@@ -303,7 +301,7 @@ const deleteResult = async (resultId) => {
         throw new Error(`Invalid position: ${registration.position}`);
       }
 
-      registration.score -= positionScore;
+      eventRegistration.score -= positionScore; // Update the score field
 
       if (!isGroupEvent) {
         // Reverse score updates for each participant
