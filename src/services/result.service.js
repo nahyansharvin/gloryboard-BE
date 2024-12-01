@@ -160,6 +160,7 @@ const fetchResultByEventId = async (event_id) => {
     {
       $group: {
         _id: "$event._id",
+        serial_number: { $first: "$serial_number" },
         name: { $first: "$event.name" },
         is_onstage: { $first: "$event.event_type_details.is_onstage" },
         winningRegistrations: { $push: "$winningRegistrations" },
@@ -168,11 +169,12 @@ const fetchResultByEventId = async (event_id) => {
     // Step 10: Final projection to ensure clean output
     {
       $project: {
+        serial_number: 1,
         "winningRegistrations._id": 1,
         "winningRegistrations.position": 1,
         "winningRegistrations.eventRegistration": 1,
         name: 1,
-        is_onstage: 1,
+        is_onstage: 1
       },
     },
   ];
@@ -642,7 +644,7 @@ const fetchLeaderboardData = async () => {
     new ApiError(500, "Failed to fetch leaderboard data");
   }
 };
-
+ 
 export const resultServices = {
   fetchAllResults,
   fetchResultByEventId,
