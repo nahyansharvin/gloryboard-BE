@@ -1,4 +1,5 @@
 import { User } from "../models/user.models.js";
+import { EventRegistration } from "../models/eventRegistration.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -260,6 +261,12 @@ const fetchAllMembers = asyncHandler(async (req, res) => {
 
 const deleteUserById = asyncHandler(async (req, res) => {
   const { id } = req.query;
+
+  const eventRegistration = await EventRegistration.findOne({ "participants.user" : id });
+
+  if (eventRegistration) {
+    throw new ApiError(409, "User is registered in an event and cannot be deleted");
+  }
 
   const user = await User.findByIdAndDelete(id);
 
