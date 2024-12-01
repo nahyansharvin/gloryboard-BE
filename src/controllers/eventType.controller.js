@@ -1,4 +1,5 @@
 import { EventType } from "../models/eventType.models.js";
+import { Event } from "../models/event.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -92,10 +93,17 @@ const updateEventType = asyncHandler(async (req, res, next) => {
 const deleteEventType = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
+  const events = await Event.find({ event_type: id });
+
+  if (events.length > 0) {
+    return next(new ApiError(409 , "Event type has events, cannot delete"));
+  }
+
+
   const eventType = await EventType.findByIdAndDelete(id);
 
   if (!eventType) {
-    return next(new ApiError("Event type not found", 404));
+    return next(new ApiError( 404, "Event type not found"));
   }
 
   return res

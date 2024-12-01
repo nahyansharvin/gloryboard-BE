@@ -3,6 +3,7 @@ import { Event } from "../models/event.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Result } from "../models/result.models.js";
 
 // Create a new event registration
 const createEventRegistration = asyncHandler(async (req, res, next) => {
@@ -26,7 +27,6 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
 
   const eventDetails = await Event.findById(event).populate("event_type");
   const is_group = eventDetails.event_type.is_group;
-
 
   let addedEvent;
 
@@ -185,6 +185,22 @@ const updateEventRegistration = asyncHandler(async (req, res, next) => {
 // Delete event registration by ID
 const deleteEventRegistration = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+
+  const eventRegistration = await EventRegistration.findById(id);
+
+  if (!eventRegistration) {
+    return next(new ApiError(404, "Event registration not found"));
+  }
+
+  const results = await Result.find({
+    "winningRegistrations.eventRegistration": id,
+  });
+
+  if (results.length > 0) {
+    return next(
+      new ApiError(400, "Cannot delete registration with associated results")
+    );
+  }
 
   const deletedEvent = await EventRegistration.findByIdAndDelete(id);
 

@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Result } from "../models/result.models.js";
+import { EventRegistration } from "../models/eventRegistration.models.js";
 
 const fetchAllEvents = asyncHandler(async (req, res, next) => {
   const events = await Event.find()
@@ -22,7 +23,6 @@ const fetchAllEvents = asyncHandler(async (req, res, next) => {
 });
 
 const fetchResultPublishedEvents = asyncHandler(async (req, res, next) => {
-  
   const aggregate = [
     {
       $lookup: {
@@ -45,7 +45,7 @@ const fetchResultPublishedEvents = asyncHandler(async (req, res, next) => {
 
   const events = await Result.aggregate(aggregate);
 
-  if (!events) { 
+  if (!events) {
     return next(new ApiError(404, "No events found"));
   }
 
@@ -53,7 +53,6 @@ const fetchResultPublishedEvents = asyncHandler(async (req, res, next) => {
     .status(200)
     .json(new ApiResponse(200, events, "Events fetched successfully"));
 });
-
 
 const createEvent = asyncHandler(async (req, res, next) => {
   const { name, event_type } = req.body;
@@ -114,10 +113,16 @@ const updateEvent = asyncHandler(async (req, res, next) => {
 const deleteEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
+  const eventRegistrations = await EventRegistration.find({ event: id });
+
+  if (eventRegistrations.length > 0) {
+    return next(new ApiError(409, "Event has registrations, cannot delete"));
+  }
+
   const event = await Event.findByIdAndDelete(id);
 
   if (!event) {
-    return next(new ApiError("Event not found", 404));
+    return next(new ApiError(500, "Failed to delete event"));
   }
 
   return res
@@ -125,4 +130,10 @@ const deleteEvent = asyncHandler(async (req, res, next) => {
     .json(new ApiResponse(200, {}, "Event deleted successfully"));
 });
 
-export { fetchAllEvents,fetchResultPublishedEvents, createEvent, updateEvent, deleteEvent };
+export {
+  fetchAllEvents,
+  fetchResultPublishedEvents,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+};
