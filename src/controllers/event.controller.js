@@ -2,6 +2,8 @@ import { Event } from "../models/event.models.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Result } from "../models/result.models.js";
+import { EventRegistration } from "../models/eventRegistration.models.js";
 
 const fetchAllEvents = asyncHandler(async (req, res, next) => {
   const events = await Event.find()
@@ -13,6 +15,38 @@ const fetchAllEvents = asyncHandler(async (req, res, next) => {
 
   if (!events) {
     return next(new ApiError("No events found", 404));
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, events, "Events fetched successfully"));
+});
+
+const fetchResultPublishedEvents = asyncHandler(async (req, res, next) => {
+  const aggregate = [
+    {
+      $lookup: {
+        from: "events",
+        localField: "event",
+        foreignField: "_id",
+        as: "eventDetails",
+      },
+    },
+    {
+      $unwind: "$eventDetails",
+    },
+    {
+      $group: {
+        _id: "$eventDetails._id",
+        name: { $first: "$eventDetails.name" },
+      },
+    },
+  ];
+
+  const events = await Result.aggregate(aggregate);
+
+  if (!events) {
+    return next(new ApiError(404, "No events found"));
   }
 
   return res
@@ -79,10 +113,16 @@ const updateEvent = asyncHandler(async (req, res, next) => {
 const deleteEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
+  const eventRegistrations = await EventRegistration.find({ event: id });
+
+  if (eventRegistrations.length > 0) {
+    return next(new ApiError(409, "Event has registrations, cannot delete"));
+  }
+
   const event = await Event.findByIdAndDelete(id);
 
   if (!event) {
-    return next(new ApiError("Event not found", 404));
+    return next(new ApiError(500, "Failed to delete event"));
   }
 
   return res
@@ -90,4 +130,10 @@ const deleteEvent = asyncHandler(async (req, res, next) => {
     .json(new ApiResponse(200, {}, "Event deleted successfully"));
 });
 
-export { fetchAllEvents, createEvent, updateEvent, deleteEvent };
+export {
+  fetchAllEvents,
+  fetchResultPublishedEvents,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+};

@@ -160,6 +160,7 @@ const fetchResultByEventId = async (event_id) => {
     {
       $group: {
         _id: "$event._id",
+        serial_number: { $first: "$serial_number" },
         name: { $first: "$event.name" },
         is_onstage: { $first: "$event.event_type_details.is_onstage" },
         winningRegistrations: { $push: "$winningRegistrations" },
@@ -168,11 +169,12 @@ const fetchResultByEventId = async (event_id) => {
     // Step 10: Final projection to ensure clean output
     {
       $project: {
+        serial_number: 1,
         "winningRegistrations._id": 1,
         "winningRegistrations.position": 1,
         "winningRegistrations.eventRegistration": 1,
         name: 1,
-        is_onstage: 1,
+        is_onstage: 1
       },
     },
   ];
@@ -288,9 +290,7 @@ const deleteResult = async (resultId) => {
     const isGroupEvent = eventType.is_group;
     // Revert participant and user scores for non-group events
     for (const registration of result.winningRegistrations) {
-      const eventRegistration = await EventRegistration.findById(
-        registration.eventRegistration
-      ).session(session);
+      const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
       if (!eventRegistration) {
         throw new Error(
           `Event registration not found for ID: ${registration.eventRegistration}`
@@ -301,7 +301,7 @@ const deleteResult = async (resultId) => {
         throw new Error(`Invalid position: ${registration.position}`);
       }
 
-      registration.score -= positionScore;
+      eventRegistration.score -= positionScore; // Update the score field
 
       if (!isGroupEvent) {
         // Reverse score updates for each participant
@@ -642,7 +642,7 @@ const fetchLeaderboardData = async () => {
     new ApiError(500, "Failed to fetch leaderboard data");
   }
 };
-
+ 
 export const resultServices = {
   fetchAllResults,
   fetchResultByEventId,
