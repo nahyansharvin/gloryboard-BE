@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Result } from "../models/result.models.js";
 import { DEPARTMENTS } from "../constants.js";
 
-// Create a new event registration
+
 const createEventRegistration = asyncHandler(async (req, res, next) => {
   const { event, group_name, participants, helpers } = req.body;
 
@@ -25,6 +25,16 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
   if (!event || !participants) {
     return next(new ApiError(400, "Please provide all required fields"));
   }
+
+  const userAlreadyRegistered = await EventRegistration.findOne({
+    event,
+    "participants.user": { $in: participants.map((p) => p.user) },
+  });
+
+  if (userAlreadyRegistered) {
+    return next(new ApiError(409, "User already registered for this event"));
+  }
+
 
   const eventDetails = await Event.findById(event).populate("event_type");
   const is_group = eventDetails.event_type.is_group;
@@ -66,11 +76,13 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
 
   let matchStage = {};
   if (user_type === "rep") {
-    const departmentGroup = Object.keys(DEPARTMENTS).find(group =>
+    const departmentGroup = Object.keys(DEPARTMENTS).find((group) =>
       DEPARTMENTS[group].includes(department)
     );
     if (departmentGroup) {
-      matchStage = { "participants.user.department": { $in: DEPARTMENTS[departmentGroup] } };
+      matchStage = {
+        "participants.user.department": { $in: DEPARTMENTS[departmentGroup] },
+      };
     }
   }
 
@@ -80,8 +92,8 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
         from: "users",
         localField: "participants.user",
         foreignField: "_id",
-        as: "participants.user"
-      }
+        as: "participants.user",
+      },
     },
     { $unwind: "$participants.user" },
     { $match: matchStage },
@@ -90,8 +102,8 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
         from: "events",
         localField: "event",
         foreignField: "_id",
-        as: "event"
-      }
+        as: "event",
+      },
     },
     { $unwind: "$event" },
     {
@@ -99,8 +111,8 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
         from: "eventtypes",
         localField: "event.event_type",
         foreignField: "_id",
-        as: "event.event_type"
-      }
+        as: "event.event_type",
+      },
     },
     { $unwind: "$event.event_type" },
     {
@@ -108,30 +120,29 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
         from: "users",
         localField: "helpers.user",
         foreignField: "_id",
-        as: "helpers.user"
-      }
+        as: "helpers.user",
+      },
     },
     {
       $group: {
         _id: "$_id",
         event: { $first: "$event" },
         group_name: { $first: "$group_name" },
-        participants: { $push:  "$participants.user" },
+        participants: { $push: "$participants.user" },
         helpers: { $first: "$helpers" },
         score: { $first: "$score" },
         created_at: { $first: "$created_at" },
-        updated_at: { $first: "$updated_at" }
-      }
+        updated_at: { $first: "$updated_at" },
+      },
     },
     {
       $project: {
-        "__v": 0,
-        "created_at": 0,
-        "updated_at": 0
-      }
-    }
+        __v: 0,
+        created_at: 0,
+        updated_at: 0,
+      },
+    },
   ]);
-  
 
   if (!eventRegistrations.length) {
     return next(new ApiError(404, "No event registrations found"));
