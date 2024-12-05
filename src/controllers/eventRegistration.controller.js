@@ -112,6 +112,18 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
       }
     },
     {
+      $group: {
+        _id: "$_id",
+        event: { $first: "$event" },
+        group_name: { $first: "$group_name" },
+        participants: { $push:  "$participants.user" },
+        helpers: { $first: "$helpers" },
+        score: { $first: "$score" },
+        created_at: { $first: "$created_at" },
+        updated_at: { $first: "$updated_at" }
+      }
+    },
+    {
       $project: {
         "__v": 0,
         "created_at": 0,
@@ -119,6 +131,7 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
       }
     }
   ]);
+  
 
   if (!eventRegistrations.length) {
     return next(new ApiError(404, "No event registrations found"));
