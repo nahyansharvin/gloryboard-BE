@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Result } from "../models/result.models.js";
+import { DEPARTMENTS } from "../constants.js";
 
 // Create a new event registration
 const createEventRegistration = asyncHandler(async (req, res, next) => {
@@ -63,20 +64,63 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
 const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
   const { user_type, department } = req.user;
 
-  const eventRegistrations = await EventRegistration.find()
-    .populate({
-      path: "event",
-      select: "name event_type",
-      populate: {
-        path: "event_type",
-        select: "name is_group",
-      },
-    })
-    .populate("participants.user", "name number department year_of_study")
-    .populate("helpers.user", "name")
-    .select("-__v -created_at -updated_at");
+  let matchStage = {};
+  if (user_type === "rep") {
+    const departmentGroup = Object.keys(DEPARTMENTS).find(group =>
+      DEPARTMENTS[group].includes(department)
+    );
+    if (departmentGroup) {
+      matchStage = { "participants.user.department": { $in: DEPARTMENTS[departmentGroup] } };
+    }
+  }
 
-  if (!eventRegistrations) {
+  const eventRegistrations = await EventRegistration.aggregate([
+    {
+      $lookup: {
+        from: "users",
+        localField: "participants.user",
+        foreignField: "_id",
+        as: "participants.user"
+      }
+    },
+    { $unwind: "$participants.user" },
+    { $match: matchStage },
+    {
+      $lookup: {
+        from: "events",
+        localField: "event",
+        foreignField: "_id",
+        as: "event"
+      }
+    },
+    { $unwind: "$event" },
+    {
+      $lookup: {
+        from: "eventtypes",
+        localField: "event.event_type",
+        foreignField: "_id",
+        as: "event.event_type"
+      }
+    },
+    { $unwind: "$event.event_type" },
+    {
+      $lookup: {
+        from: "users",
+        localField: "helpers.user",
+        foreignField: "_id",
+        as: "helpers.user"
+      }
+    },
+    {
+      $project: {
+        "__v": 0,
+        "created_at": 0,
+        "updated_at": 0
+      }
+    }
+  ]);
+
+  if (!eventRegistrations.length) {
     return next(new ApiError(404, "No event registrations found"));
   }
 
