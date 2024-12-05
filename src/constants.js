@@ -26,5 +26,5 @@ export const DEPARTMENTS = {
     "BSc Biochemistry",
     "BSc Biotechnology",
   ],
-  "Commerce and Management": ["BCom CA", "BCom Cooperation", "BBA", "MCom"],
+  Commerce: ["BCom CA", "BCom Cooperation", "BBA", "MCom"],
 };
