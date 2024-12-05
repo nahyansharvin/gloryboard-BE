@@ -18,7 +18,6 @@ const generateAccessToken = async (userId) => {
   }
 };
 
-
 const registerAdmin = asyncHandler(async (req, res) => {
   const requiredFields = [
     "name",
@@ -241,9 +240,19 @@ const fetchAllMembers = asyncHandler(async (req, res) => {
   let users;
 
   if (req.user.user_type === "rep") {
-    users = await User.find({ department: req.user.department }).select(
-      "-password -__v -created_at -updated_at"
+    const departmentGroup = Object.keys(DEPARTMENTS).find((group) =>
+      DEPARTMENTS[group].includes(req.user.department)
     );
+
+    if (departmentGroup) {
+      users = await User.find({
+        department: { $in: DEPARTMENTS[departmentGroup] },
+      }).select("-password -__v -created_at -updated_at");
+    }
+
+    // users = await User.find({ department: req.user.department }).select(
+    //   "-password -__v -created_at -updated_at"
+    // );
   } else if (req.user.user_type === "admin") {
     users = await User.find({ user_type: "member" }).select(
       "-password -__v -created_at -updated_at"
@@ -262,10 +271,15 @@ const fetchAllMembers = asyncHandler(async (req, res) => {
 const deleteUserById = asyncHandler(async (req, res) => {
   const { id } = req.query;
 
-  const eventRegistration = await EventRegistration.findOne({ "participants.user" : id });
+  const eventRegistration = await EventRegistration.findOne({
+    "participants.user": id,
+  });
 
   if (eventRegistration) {
-    throw new ApiError(409, "User is registered in an event and cannot be deleted");
+    throw new ApiError(
+      409,
+      "User is registered in an event and cannot be deleted"
+    );
   }
 
   const user = await User.findByIdAndDelete(id);
