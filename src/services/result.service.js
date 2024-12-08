@@ -6,6 +6,7 @@ import { EventRegistration } from "../models/eventRegistration.models.js";
 import { EventType } from "../models/eventType.models.js";
 import { DEPARTMENTS, POSITIONS } from "../constants.js";
 import { User } from "../models/user.models.js";
+import { Counter } from "../models/counter.model.js";
 
 const fetchAllResults = async () => {
   try {
@@ -231,23 +232,21 @@ const createResult = async (event_id, winningRegistrations, user) => {
 
       eventRegistration.score += positionScore;
 
-      if (isGroupEvent) {
-        console.log("Event is group event");
-        continue;
-      }
-
-      for (const participant of eventRegistration.participants) {
-        const user = await User.findById(participant.user).session(session);
-
-        if (!user) {
-          throw new Error("User not found");
+      if (!isGroupEvent) {
+        for (const participant of eventRegistration.participants) {
+          const user = await User.findById(participant.user).session(session);
+  
+          if (!user) {
+            throw new Error("User not found");
+          }
+  
+          user.total_score += positionScore;
+  
+          await user.save({ session });
         }
-
-        user.total_score += positionScore;
-
-        await user.save({ session });
       }
 
+    
       await eventRegistration.save({ session });
     }
 
@@ -546,6 +545,9 @@ const fetchAllIndividualResults = async () => {
 
 const fetchLeaderboardData = async () => {
   try {
+
+    const lastCount = await Counter.findOne({ _id: "result" });
+
     const topScorers = await User.find()
       .sort({ total_score: -1 })
       .limit(10)
@@ -634,6 +636,7 @@ const fetchLeaderboardData = async () => {
     });
 
     return {
+      lastCount : lastCount.seq,
       topScorers,
       departmentScores,
     };
