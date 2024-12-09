@@ -233,7 +233,7 @@ const createResult = async (event_id, winningRegistrations, user) => {
         throw new Error("Invalid position provided");
       }
 
-      eventRegistration.score += positionScore;
+      eventRegistration.score = positionScore;
       
       if (!isGroupEvent) {
         for (const participant of eventRegistration.participants) {
@@ -248,6 +248,7 @@ const createResult = async (event_id, winningRegistrations, user) => {
           await user.save({ session });
         }
       }
+
 
     
       await eventRegistration.save({ session });
@@ -269,6 +270,7 @@ const createResult = async (event_id, winningRegistrations, user) => {
     await session.abortTransaction();
     console.log("Transaction aborted");
     console.error("transaction error", error);
+    throw new Error(error.message);
   } finally {
     session.endSession();
   }
@@ -554,90 +556,90 @@ const fetchLeaderboardData = async () => {
       .sort({ total_score: -1 })
       .limit(10)
       .select("-created_at -updated_at -__v -user_type -_id");
-
-    const results = await Result.aggregate([
-      {
-        $lookup: {
-          from: "events",
-          localField: "event",
-          foreignField: "_id",
-          as: "eventDetails",
-        },
-      },
-      {
-        $unwind: {
-          path: "$eventDetails",
-        },
-      },
-      {
-        $lookup: {
-          from: "eventtypes",
-          localField: "eventDetails.event_type",
-          foreignField: "_id",
-          as: "evenTypeDetails",
-        },
-      },
-      {
-        $unwind: {
-          path: "$evenTypeDetails",
-        },
-      },
-      {
-        $unwind: "$winningRegistrations",
-      },
-      {
-        $lookup: {
-          from: "eventregistrations",
-          localField: "winningRegistrations.eventRegistration",
-          foreignField: "_id",
-          as: "registrationDetails",
-        },
-      },
-      {
-        $unwind: "$registrationDetails",
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "registrationDetails.participants.user",
-          foreignField: "_id",
-          as: "participantDetails",
-        },
-      },
-      {
-        $addFields: {
-          firstParticipant: { $arrayElemAt: ["$participantDetails", 0] },
-        },
-      },
-      {
-        $group: {
-          _id: "$firstParticipant.department",
-          totalScore: {
-            $sum: "$registrationDetails.score",
+      const results = await Result.aggregate([
+        {
+          $lookup: {
+            from: "events",
+            localField: "event",
+            foreignField: "_id",
+            as: "eventDetails",
           },
         },
-      },
-      {
-        $sort: {
-          totalScore: -1,
+        {
+          $unwind: {
+            path: "$eventDetails",
+          },
         },
-      },
-    ]);
-
-    const departmentScores = {};
-
-    Object.keys(DEPARTMENTS).forEach((group) => {
-      departmentScores[group] = 0;
-    });
-
-    results.forEach(({ _id: department, totalScore }) => {
-      for (const [group, departments] of Object.entries(DEPARTMENTS)) {
-        if (departments.includes(department)) {
-          departmentScores[group] += totalScore;
-          break;
+        {
+          $lookup: {
+            from: "eventtypes",
+            localField: "eventDetails.event_type",
+            foreignField: "_id",
+            as: "evenTypeDetails",
+          },
+        },
+        {
+          $unwind: {
+            path: "$evenTypeDetails",
+          },
+        },
+        {
+          $unwind: "$winningRegistrations",
+        },
+        {
+          $lookup: {
+            from: "eventregistrations",
+            localField: "winningRegistrations.eventRegistration",
+            foreignField: "_id",
+            as: "registrationDetails",
+          },
+        },
+        {
+          $unwind: "$registrationDetails",
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "registrationDetails.participants.user",
+            foreignField: "_id",
+            as: "participantDetails",
+          },
+        },
+        {
+          $addFields: {
+            firstParticipant: { $arrayElemAt: ["$participantDetails", 0] },
+          },
+        },
+        {
+          $group: {
+            _id: "$firstParticipant.department",
+            totalScore: {
+              $sum: "$registrationDetails.score",
+            },
+          },
+        },
+        {
+          $sort: {
+            totalScore: -1,
+          },
+        },
+      ]);
+  
+      const departmentScores = {};
+  
+      Object.keys(DEPARTMENTS).forEach((group) => {
+        departmentScores[group] = 0;
+      });
+  
+      results.forEach(({ _id: department, totalScore }) => {
+        for (const [group, departments] of Object.entries(DEPARTMENTS)) {
+          if (departments.includes(department)) {
+            departmentScores[group] += totalScore;
+            break;
+          }
         }
-      }
-    });
+      });
+
 
     return {
       lastCount: lastCount.seq,
