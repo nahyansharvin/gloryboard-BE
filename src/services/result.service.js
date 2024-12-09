@@ -337,114 +337,77 @@ const deleteResult = async (resultId) => {
   }
 };
 
-const updateResult = async (
-  resultId,
-  updatedWinningRegistrations,
-  updatedBy
-) => {
+const updateResult = async (resultId, updatedWinningRegistrations, user) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // Fetch the result document
     const result = await Result.findById(resultId).session(session);
     if (!result) throw new Error(`Result not found for ID: ${resultId}`);
 
     const event = await Event.findById(result.event).session(session);
     if (!event) throw new Error(`Event not found for ID: ${result.event}`);
 
-    const eventType = await EventType.findById(event.event_type).session(
-      session
-    );
-    if (!eventType)
-      throw new Error(`Event type not found for ID: ${event.event_type}`);
+    const eventType = await EventType.findById(event.event_type).session(session);
+    if (!eventType) throw new Error(`Event type not found for ID: ${event.event_type}`);
 
     const isGroupEvent = eventType.is_group;
 
     // Reverse previous scores if not a group event
     for (const registration of result.winningRegistrations) {
-      const eventRegistration = await EventRegistration.findById(
-        registration.eventRegistration
-      ).session(session);
-
-      if (!eventRegistration) {
-        throw new Error(
-          `Event registration not found for ID: ${registration.eventRegistration}`
-        );
-      }
+      const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
+      if (!eventRegistration) throw new Error(`Event registration not found for ID: ${registration.eventRegistration}`);
 
       const positionScore = eventType.scores[POSITIONS[registration.position]];
-      if (!positionScore) {
-        throw new Error(`Invalid position: ${registration.position}`);
-      }
+      if (!positionScore) throw new Error(`Invalid position: ${registration.position}`);
+
+      eventRegistration.score -= positionScore;
 
       if (!isGroupEvent) {
-        // Revert scores for each participant
         for (const participant of eventRegistration.participants) {
           const user = await User.findById(participant.user).session(session);
-
-          if (!user) {
-            throw new Error(`User not found for ID: ${participant.user}`);
-          }
+          if (!user) throw new Error(`User not found for ID: ${participant.user}`);
 
           user.total_score -= positionScore;
-
           await user.save({ session });
         }
       }
 
-      // Save reverted event registration changes
       await eventRegistration.save({ session });
     }
 
     // Apply updates for new winningRegistrations
     for (const registration of updatedWinningRegistrations) {
-      const eventRegistration = await EventRegistration.findById(
-        registration.eventRegistration
-      ).session(session);
-
-      if (!eventRegistration) {
-        throw new Error(
-          `Event registration not found for ID: ${registration.eventRegistration}`
-        );
-      }
+      const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
+      if (!eventRegistration) throw new Error(`Event registration not found for ID: ${registration.eventRegistration}`);
 
       const positionScore = eventType.scores[POSITIONS[registration.position]];
-      if (!positionScore) {
-        throw new Error(`Invalid position: ${registration.position}`);
-      }
+      if (!positionScore) throw new Error(`Invalid position: ${registration.position}`);
+
+      eventRegistration.score += positionScore;
 
       if (!isGroupEvent) {
-        // Apply scores for each participant
         for (const participant of eventRegistration.participants) {
           const user = await User.findById(participant.user).session(session);
+          if (!user) throw new Error(`User not found for ID: ${participant.user}`);
 
-          if (!user) {
-            throw new Error(`User not found for ID: ${participant.user}`);
-          }
-
-          participant.score += positionScore;
           user.total_score += positionScore;
-
           await user.save({ session });
         }
       }
 
-      // Save updated event registration changes
       await eventRegistration.save({ session });
     }
 
     // Update the result document with new winning registrations and updated_by
     result.winningRegistrations = updatedWinningRegistrations;
-    result.updated_by = updatedBy; // Save the user who performed the update
+    result.updated_by = user;
     await result.save({ session });
 
-    // Commit the transaction
     await session.commitTransaction();
     console.log("Transaction committed successfully");
     return result;
   } catch (error) {
-    // Rollback transaction
     await session.abortTransaction();
     console.error("Transaction aborted due to error:", error.message);
     throw new Error(error.message);
