@@ -190,7 +190,7 @@ const createResult = async (event_id, winningRegistrations, user) => {
   session.startTransaction();
 
   try {
-    const event = await Event.findById(event_id).session(session);
+    const event =   await Event.findById(event_id).session(session);
 
     if (!event) {
       throw new Error("Event not found");
@@ -231,7 +231,7 @@ const createResult = async (event_id, winningRegistrations, user) => {
       }
 
       eventRegistration.score += positionScore;
-
+      
       if (!isGroupEvent) {
         for (const participant of eventRegistration.participants) {
           const user = await User.findById(participant.user).session(session);
@@ -545,7 +545,6 @@ const fetchAllIndividualResults = async () => {
 
 const fetchLeaderboardData = async () => {
   try {
-
     const lastCount = await Counter.findOne({ _id: "result" });
 
     const topScorers = await User.find()
@@ -603,11 +602,13 @@ const fetchLeaderboardData = async () => {
         },
       },
       {
-        $unwind: "$participantDetails",
+        $addFields: {
+          firstParticipant: { $arrayElemAt: ["$participantDetails", 0] },
+        },
       },
       {
         $group: {
-          _id: "$participantDetails.department",
+          _id: "$firstParticipant.department",
           totalScore: {
             $sum: "$registrationDetails.score",
           },
@@ -636,7 +637,7 @@ const fetchLeaderboardData = async () => {
     });
 
     return {
-      lastCount : lastCount.seq,
+      lastCount: lastCount.seq,
       topScorers,
       departmentScores,
     };
