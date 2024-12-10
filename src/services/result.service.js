@@ -343,30 +343,42 @@ const updateResult = async (resultId, updatedWinningRegistrations, user) => {
 
   try {
     const result = await Result.findById(resultId).session(session);
-    if (!result) throw new Error(`Result not found for ID: ${resultId}`);
+    if (!result) {
+      throw new Error("Result not found");
+    }
 
     const event = await Event.findById(result.event).session(session);
-    if (!event) throw new Error(`Event not found for ID: ${result.event}`);
+    if (!event) {
+      throw new Error("Event not found");
+    }
 
     const eventType = await EventType.findById(event.event_type).session(session);
-    if (!eventType) throw new Error(`Event type not found for ID: ${event.event_type}`);
+    if (!eventType) {
+      throw new Error("Event type not found");
+    }
 
     const isGroupEvent = eventType.is_group;
 
-    // Reverse previous scores if not a group event
+    // Revert scores for existing winning registrations
     for (const registration of result.winningRegistrations) {
       const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
-      if (!eventRegistration) throw new Error(`Event registration not found for ID: ${registration.eventRegistration}`);
+      if (!eventRegistration) {
+        throw new Error("Event registration not found");
+      }
 
       const positionScore = eventType.scores[POSITIONS[registration.position]];
-      if (!positionScore) throw new Error(`Invalid position: ${registration.position}`);
+      if (!positionScore) {
+        throw new Error("Invalid position provided");
+      }
 
       eventRegistration.score -= positionScore;
 
       if (!isGroupEvent) {
         for (const participant of eventRegistration.participants) {
           const user = await User.findById(participant.user).session(session);
-          if (!user) throw new Error(`User not found for ID: ${participant.user}`);
+          if (!user) {
+            throw new Error("User not found");
+          }
 
           user.total_score -= positionScore;
           await user.save({ session });
@@ -376,20 +388,26 @@ const updateResult = async (resultId, updatedWinningRegistrations, user) => {
       await eventRegistration.save({ session });
     }
 
-    // Apply updates for new winningRegistrations
+    // Apply new scores for updated winning registrations
     for (const registration of updatedWinningRegistrations) {
       const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
-      if (!eventRegistration) throw new Error(`Event registration not found for ID: ${registration.eventRegistration}`);
+      if (!eventRegistration) {
+        throw new Error("Event registration not found");
+      }
 
       const positionScore = eventType.scores[POSITIONS[registration.position]];
-      if (!positionScore) throw new Error(`Invalid position: ${registration.position}`);
+      if (!positionScore) {
+        throw new Error("Invalid position provided");
+      }
 
-      eventRegistration.score += positionScore;
+      eventRegistration.score = positionScore;
 
       if (!isGroupEvent) {
         for (const participant of eventRegistration.participants) {
           const user = await User.findById(participant.user).session(session);
-          if (!user) throw new Error(`User not found for ID: ${participant.user}`);
+          if (!user) {
+            throw new Error("User not found");
+          }
 
           user.total_score += positionScore;
           await user.save({ session });
@@ -399,17 +417,17 @@ const updateResult = async (resultId, updatedWinningRegistrations, user) => {
       await eventRegistration.save({ session });
     }
 
-    // Update the result document with new winning registrations and updated_by
     result.winningRegistrations = updatedWinningRegistrations;
     result.updated_by = user;
     await result.save({ session });
 
     await session.commitTransaction();
-    console.log("Transaction committed successfully");
+    console.log("Transaction committed");
     return result;
   } catch (error) {
     await session.abortTransaction();
-    console.error("Transaction aborted due to error:", error.message);
+    console.log("Transaction aborted");
+    console.error("transaction error", error);
     throw new Error(error.message);
   } finally {
     session.endSession();
