@@ -13,6 +13,7 @@ export const DEPARTMENTS = {
     "BA Economics",
     "MA History",
     "MA Economics",
+    "MA English",
   ],
   BVoc: [
     "BVoc Logistics Management",
