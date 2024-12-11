@@ -4,8 +4,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Result } from "../models/result.models.js";
+import { User } from "../models/user.models.js";
 import { DEPARTMENTS } from "../constants.js";
-
 
 const createEventRegistration = asyncHandler(async (req, res, next) => {
   const { event, group_name, participants, helpers } = req.body;
@@ -35,9 +35,29 @@ const createEventRegistration = asyncHandler(async (req, res, next) => {
     return next(new ApiError(409, "User already registered for this event"));
   }
 
-
   const eventDetails = await Event.findById(event).populate("event_type");
   const is_group = eventDetails.event_type.is_group;
+
+  if (is_group) {
+    let departmentCategory;
+    participants.forEach(async (participant) => {
+      const user = await User.findById(participant.user);
+      // check the department category of the user with DEPARTMENTS constant
+      const departmentGroup = Object.keys(DEPARTMENTS).find((group) =>
+        DEPARTMENTS[group].includes(user.department)
+      );
+
+      if (departmentCategory && departmentCategory !== departmentGroup) {
+        return next(
+          new ApiError(
+            400,
+            "Participants must be from the same department group"
+          )
+        );
+      }
+      departmentCategory = departmentGroup;
+    });
+  }
 
   let addedEvent;
 
