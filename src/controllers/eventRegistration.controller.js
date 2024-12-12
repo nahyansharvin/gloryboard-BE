@@ -193,7 +193,7 @@ const getEventRegistrationByEventId = asyncHandler(async (req, res, next) => {
     .select("-__v -created_at -updated_at");
 
   if (!eventRegistration) {
-    return next(new ApiError(204, "Event registration not found"));
+    return res.status(204).json(new ApiResponse(204, [], "No event registration found"));
   }
 
   res
