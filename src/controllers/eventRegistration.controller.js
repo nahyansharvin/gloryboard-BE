@@ -164,10 +164,10 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
     },
   ]);
 
-  if (!eventRegistrations.length) {
-    // 204 No Content
-    return next(new ApiError(204, "No event registrations found"));
-  }
+  // if (!eventRegistrations.length) {
+  //   // 204 No Content
+  //   return next(new ApiError(204, "No event registrations found"));
+  // }
 
   res
     .status(200)
@@ -192,9 +192,9 @@ const getEventRegistrationByEventId = asyncHandler(async (req, res, next) => {
     .populate("helpers.user", "name")
     .select("-__v -created_at -updated_at");
 
-  if (!eventRegistration) {
-    return res.status(204).json(new ApiResponse(204, [], "No event registration found"));
-  }
+  // if (!eventRegistration) {
+  //   return res.status(204).json(new ApiResponse(204, [], "No event registration found"));
+  // }
 
   res
     .status(200)
