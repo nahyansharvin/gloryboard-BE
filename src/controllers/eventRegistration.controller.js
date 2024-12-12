@@ -218,9 +218,9 @@ const getEventRegistrationById = asyncHandler(async (req, res, next) => {
     .populate("helpers.user", "name")
     .select("-__v -created_at -updated_at");
 
-  if (!eventRegistration) {
-    return next(new ApiError(404, "Event registration not found"));
-  }
+  // if (!eventRegistration) {
+  //   return next(new ApiError(404, "Event registration not found"));
+  // }
 
   res
     .status(200)
