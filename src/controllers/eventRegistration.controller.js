@@ -165,7 +165,8 @@ const getAllEventRegistrations = asyncHandler(async (req, res, next) => {
   ]);
 
   if (!eventRegistrations.length) {
-    return next(new ApiError(404, "No event registrations found"));
+    // 204 No Content
+    return next(new ApiError(204, "No event registrations found"));
   }
 
   res
@@ -192,7 +193,7 @@ const getEventRegistrationByEventId = asyncHandler(async (req, res, next) => {
     .select("-__v -created_at -updated_at");
 
   if (!eventRegistration) {
-    return next(new ApiError(404, "Event registration not found"));
+    return next(new ApiError(204, "Event registration not found"));
   }
 
   res

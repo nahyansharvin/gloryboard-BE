@@ -165,7 +165,7 @@ const fetchResultByEventId = async (event_id) => {
         name: { $first: "$event.name" },
         is_onstage: { $first: "$event.event_type_details.is_onstage" },
         winningRegistrations: { $push: "$winningRegistrations" },
-        updated_at: { $first: "$updated_at" },
+        updated_at: { $first: "$updated_at" },  
       },
     },
     // Step 10: Final projection to ensure clean output
@@ -178,7 +178,7 @@ const fetchResultByEventId = async (event_id) => {
         "winningRegistrations.eventRegistration": 1,
         name: 1,
         is_onstage: 1,
-
+        
       },
     },
   ];
