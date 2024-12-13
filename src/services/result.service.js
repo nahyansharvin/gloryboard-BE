@@ -140,7 +140,55 @@ const fetchResultByEventId = async (event_id) => {
         as: "winningRegistrations.eventRegistration.helpers.user",
       },
     },
-    // Step 8: Project only necessary fields and exclude unnecessary fields
+    // Step 8: Determine department group based on the first participant's department
+    {
+      $addFields: {
+        "winningRegistrations.eventRegistration.departmentGroup": {
+          $switch: {
+            branches: [
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.arts,
+                  ],
+                },
+                then: "Arts",
+              },
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.Science
+                  ],
+                },
+                then: "Science",
+              },
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.BVoc,
+                  ],
+                },
+                then: "BVoc",
+              },
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.Commerce,
+                  ],
+                },
+                then: "Commerce",
+              },
+            ],
+            default: "Others", // For unmatched departments
+          },
+        },
+      },
+    },
+    // Step 9: Project only necessary fields and exclude unnecessary fields
     {
       $project: {
         "winningRegistrations.eventRegistration.participants.user.user_type": 0,
@@ -157,7 +205,7 @@ const fetchResultByEventId = async (event_id) => {
         "winningRegistrations.eventRegistration.event": 0,
       },
     },
-    // Step 9: Group by event and aggregate the winning registrations
+    // Step 10: Group by event and aggregate the winning registrations
     {
       $group: {
         _id: "$event._id",
@@ -165,23 +213,25 @@ const fetchResultByEventId = async (event_id) => {
         name: { $first: "$event.name" },
         is_onstage: { $first: "$event.event_type_details.is_onstage" },
         winningRegistrations: { $push: "$winningRegistrations" },
-        updated_at: { $first: "$updated_at" },  
+        updated_at: { $first: "$updated_at" },
       },
     },
-    // Step 10: Final projection to ensure clean output
+    // Step 11: Final projection to ensure clean output
     {
       $project: {
         updated_at: 1,
         serial_number: 1,
+        departmentGroup: 1,
         "winningRegistrations._id": 1,
         "winningRegistrations.position": 1,
         "winningRegistrations.eventRegistration": 1,
         name: 1,
         is_onstage: 1,
-        
       },
     },
   ];
+  
+
 
   const result = await Result.aggregate(aggregate);
 
