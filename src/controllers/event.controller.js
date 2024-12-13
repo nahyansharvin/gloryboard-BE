@@ -39,6 +39,7 @@ const fetchResultPublishedEvents = asyncHandler(async (req, res, next) => {
       $group: {
         _id: "$eventDetails._id",
         name: { $first: "$eventDetails.name" },
+        last_updated: { $max: "$updated_at" },
       },
     },
   ];
