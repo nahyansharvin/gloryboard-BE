@@ -45,6 +45,7 @@ router.route("/result/event/:event_id").get(fetchResultByEventId);
 // router.route("/results/group").get(fetchAllGroupResults);
 router.route("/results/single").get(fetchAllIndividualResults);
 router.route("/results/leaderboard").get(fetchLeaderboard);
+router.route("/departments").get(fetchDepartments);
 
 // Protucted Router
 router
@@ -59,9 +60,5 @@ router
 router
   .route("/delete")
   .get(verifyJWT, verifyRole(["admin", "rep"]), deleteUserById);
-
-router
-  .route("/departments")
-  .get(verifyJWT, verifyRole(["admin", "rep"]), fetchDepartments);
 
 export default router;
