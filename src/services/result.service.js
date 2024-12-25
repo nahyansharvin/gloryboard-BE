@@ -6,6 +6,7 @@ import { EventRegistration } from "../models/eventRegistration.models.js";
 import { EventType } from "../models/eventType.models.js";
 import { DEPARTMENTS, POSITIONS } from "../constants.js";
 import { User } from "../models/user.models.js";
+import { Counter } from "../models/counter.model.js";
 
 const fetchAllResults = async () => {
   try {
@@ -139,7 +140,55 @@ const fetchResultByEventId = async (event_id) => {
         as: "winningRegistrations.eventRegistration.helpers.user",
       },
     },
-    // Step 8: Project only necessary fields and exclude unnecessary fields
+    // Step 8: Determine department group based on the first participant's department
+    {
+      $addFields: {
+        "winningRegistrations.eventRegistration.departmentGroup": {
+          $switch: {
+            branches: [
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.arts,
+                  ],
+                },
+                then: "Arts",
+              },
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.Science
+                  ],
+                },
+                then: "Science",
+              },
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.BVoc,
+                  ],
+                },
+                then: "BVoc",
+              },
+              {
+                case: {
+                  $in: [
+                    { $arrayElemAt: ["$winningRegistrations.eventRegistration.participants.user.department", 0] },
+                    DEPARTMENTS.Commerce,
+                  ],
+                },
+                then: "Commerce",
+              },
+            ],
+            default: "Others", // For unmatched departments
+          },
+        },
+      },
+    },
+    // Step 9: Project only necessary fields and exclude unnecessary fields
     {
       $project: {
         "winningRegistrations.eventRegistration.participants.user.user_type": 0,
@@ -156,7 +205,7 @@ const fetchResultByEventId = async (event_id) => {
         "winningRegistrations.eventRegistration.event": 0,
       },
     },
-    // Step 9: Group by event and aggregate the winning registrations
+    // Step 10: Group by event and aggregate the winning registrations
     {
       $group: {
         _id: "$event._id",
@@ -164,20 +213,25 @@ const fetchResultByEventId = async (event_id) => {
         name: { $first: "$event.name" },
         is_onstage: { $first: "$event.event_type_details.is_onstage" },
         winningRegistrations: { $push: "$winningRegistrations" },
+        updated_at: { $first: "$updated_at" },
       },
     },
-    // Step 10: Final projection to ensure clean output
+    // Step 11: Final projection to ensure clean output
     {
       $project: {
+        updated_at: 1,
         serial_number: 1,
+        departmentGroup: 1,
         "winningRegistrations._id": 1,
         "winningRegistrations.position": 1,
         "winningRegistrations.eventRegistration": 1,
         name: 1,
-        is_onstage: 1
+        is_onstage: 1,
       },
     },
   ];
+  
+
 
   const result = await Result.aggregate(aggregate);
 
@@ -189,7 +243,7 @@ const createResult = async (event_id, winningRegistrations, user) => {
   session.startTransaction();
 
   try {
-    const event = await Event.findById(event_id).session(session);
+    const event =   await Event.findById(event_id).session(session);
 
     if (!event) {
       throw new Error("Event not found");
@@ -229,25 +283,24 @@ const createResult = async (event_id, winningRegistrations, user) => {
         throw new Error("Invalid position provided");
       }
 
-      eventRegistration.score += positionScore;
-
-      if (isGroupEvent) {
-        console.log("Event is group event");
-        continue;
-      }
-
-      for (const participant of eventRegistration.participants) {
-        const user = await User.findById(participant.user).session(session);
-
-        if (!user) {
-          throw new Error("User not found");
+      eventRegistration.score = positionScore;
+      
+      if (!isGroupEvent) {
+        for (const participant of eventRegistration.participants) {
+          const user = await User.findById(participant.user).session(session);
+  
+          if (!user) {
+            throw new Error("User not found");
+          }
+  
+          user.total_score += positionScore;
+  
+          await user.save({ session });
         }
-
-        user.total_score += positionScore;
-
-        await user.save({ session });
       }
 
+
+    
       await eventRegistration.save({ session });
     }
 
@@ -267,6 +320,7 @@ const createResult = async (event_id, winningRegistrations, user) => {
     await session.abortTransaction();
     console.log("Transaction aborted");
     console.error("transaction error", error);
+    throw new Error(error.message);
   } finally {
     session.endSession();
   }
@@ -333,116 +387,97 @@ const deleteResult = async (resultId) => {
   }
 };
 
-const updateResult = async (
-  resultId,
-  updatedWinningRegistrations,
-  updatedBy
-) => {
+const updateResult = async (resultId, updatedWinningRegistrations, user) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // Fetch the result document
     const result = await Result.findById(resultId).session(session);
-    if (!result) throw new Error(`Result not found for ID: ${resultId}`);
+    if (!result) {
+      throw new Error("Result not found");
+    }
 
     const event = await Event.findById(result.event).session(session);
-    if (!event) throw new Error(`Event not found for ID: ${result.event}`);
+    if (!event) {
+      throw new Error("Event not found");
+    }
 
-    const eventType = await EventType.findById(event.event_type).session(
-      session
-    );
-    if (!eventType)
-      throw new Error(`Event type not found for ID: ${event.event_type}`);
+    const eventType = await EventType.findById(event.event_type).session(session);
+    if (!eventType) {
+      throw new Error("Event type not found");
+    }
 
     const isGroupEvent = eventType.is_group;
 
-    // Reverse previous scores if not a group event
+    // Revert scores for existing winning registrations
     for (const registration of result.winningRegistrations) {
-      const eventRegistration = await EventRegistration.findById(
-        registration.eventRegistration
-      ).session(session);
-
+      const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
       if (!eventRegistration) {
-        throw new Error(
-          `Event registration not found for ID: ${registration.eventRegistration}`
-        );
+        throw new Error("Event registration not found");
       }
 
       const positionScore = eventType.scores[POSITIONS[registration.position]];
       if (!positionScore) {
-        throw new Error(`Invalid position: ${registration.position}`);
+        throw new Error("Invalid position provided");
       }
 
+      eventRegistration.score -= positionScore;
+
       if (!isGroupEvent) {
-        // Revert scores for each participant
         for (const participant of eventRegistration.participants) {
           const user = await User.findById(participant.user).session(session);
-
           if (!user) {
-            throw new Error(`User not found for ID: ${participant.user}`);
+            throw new Error("User not found");
           }
 
           user.total_score -= positionScore;
-
           await user.save({ session });
         }
       }
 
-      // Save reverted event registration changes
       await eventRegistration.save({ session });
     }
 
-    // Apply updates for new winningRegistrations
+    // Apply new scores for updated winning registrations
     for (const registration of updatedWinningRegistrations) {
-      const eventRegistration = await EventRegistration.findById(
-        registration.eventRegistration
-      ).session(session);
-
+      const eventRegistration = await EventRegistration.findById(registration.eventRegistration).session(session);
       if (!eventRegistration) {
-        throw new Error(
-          `Event registration not found for ID: ${registration.eventRegistration}`
-        );
+        throw new Error("Event registration not found");
       }
 
       const positionScore = eventType.scores[POSITIONS[registration.position]];
       if (!positionScore) {
-        throw new Error(`Invalid position: ${registration.position}`);
+        throw new Error("Invalid position provided");
       }
 
+      eventRegistration.score = positionScore;
+
       if (!isGroupEvent) {
-        // Apply scores for each participant
         for (const participant of eventRegistration.participants) {
           const user = await User.findById(participant.user).session(session);
-
           if (!user) {
-            throw new Error(`User not found for ID: ${participant.user}`);
+            throw new Error("User not found");
           }
 
-          participant.score += positionScore;
           user.total_score += positionScore;
-
           await user.save({ session });
         }
       }
 
-      // Save updated event registration changes
       await eventRegistration.save({ session });
     }
 
-    // Update the result document with new winning registrations and updated_by
     result.winningRegistrations = updatedWinningRegistrations;
-    result.updated_by = updatedBy; // Save the user who performed the update
+    result.updated_by = user;
     await result.save({ session });
 
-    // Commit the transaction
     await session.commitTransaction();
-    console.log("Transaction committed successfully");
+    console.log("Transaction committed");
     return result;
   } catch (error) {
-    // Rollback transaction
     await session.abortTransaction();
-    console.error("Transaction aborted due to error:", error.message);
+    console.log("Transaction aborted");
+    console.error("transaction error", error);
     throw new Error(error.message);
   } finally {
     session.endSession();
@@ -546,94 +581,99 @@ const fetchAllIndividualResults = async () => {
 
 const fetchLeaderboardData = async () => {
   try {
+    const lastCount = await Counter.findOne({ _id: "result" });
+
     const topScorers = await User.find()
       .sort({ total_score: -1 })
       .limit(10)
       .select("-created_at -updated_at -__v -user_type -_id");
-
-    const results = await Result.aggregate([
-      {
-        $lookup: {
-          from: "events",
-          localField: "event",
-          foreignField: "_id",
-          as: "eventDetails",
-        },
-      },
-      {
-        $unwind: {
-          path: "$eventDetails",
-        },
-      },
-      {
-        $lookup: {
-          from: "eventtypes",
-          localField: "eventDetails.event_type",
-          foreignField: "_id",
-          as: "evenTypeDetails",
-        },
-      },
-      {
-        $unwind: {
-          path: "$evenTypeDetails",
-        },
-      },
-      {
-        $unwind: "$winningRegistrations",
-      },
-      {
-        $lookup: {
-          from: "eventregistrations",
-          localField: "winningRegistrations.eventRegistration",
-          foreignField: "_id",
-          as: "registrationDetails",
-        },
-      },
-      {
-        $unwind: "$registrationDetails",
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "registrationDetails.participants.user",
-          foreignField: "_id",
-          as: "participantDetails",
-        },
-      },
-      {
-        $unwind: "$participantDetails",
-      },
-      {
-        $group: {
-          _id: "$participantDetails.department",
-          totalScore: {
-            $sum: "$registrationDetails.score",
+      const results = await Result.aggregate([
+        {
+          $lookup: {
+            from: "events",
+            localField: "event",
+            foreignField: "_id",
+            as: "eventDetails",
           },
         },
-      },
-      {
-        $sort: {
-          totalScore: -1,
+        {
+          $unwind: {
+            path: "$eventDetails",
+          },
         },
-      },
-    ]);
-
-    const departmentScores = {};
-
-    Object.keys(DEPARTMENTS).forEach((group) => {
-      departmentScores[group] = 0;
-    });
-
-    results.forEach(({ _id: department, totalScore }) => {
-      for (const [group, departments] of Object.entries(DEPARTMENTS)) {
-        if (departments.includes(department)) {
-          departmentScores[group] += totalScore;
-          break;
+        {
+          $lookup: {
+            from: "eventtypes",
+            localField: "eventDetails.event_type",
+            foreignField: "_id",
+            as: "evenTypeDetails",
+          },
+        },
+        {
+          $unwind: {
+            path: "$evenTypeDetails",
+          },
+        },
+        {
+          $unwind: "$winningRegistrations",
+        },
+        {
+          $lookup: {
+            from: "eventregistrations",
+            localField: "winningRegistrations.eventRegistration",
+            foreignField: "_id",
+            as: "registrationDetails",
+          },
+        },
+        {
+          $unwind: "$registrationDetails",
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "registrationDetails.participants.user",
+            foreignField: "_id",
+            as: "participantDetails",
+          },
+        },
+        {
+          $addFields: {
+            firstParticipant: { $arrayElemAt: ["$participantDetails", 0] },
+          },
+        },
+        {
+          $group: {
+            _id: "$firstParticipant.department",
+            totalScore: {
+              $sum: "$registrationDetails.score",
+            },
+          },
+        },
+        {
+          $sort: {
+            totalScore: -1,
+          },
+        },
+      ]);
+  
+      const departmentScores = {};
+  
+      Object.keys(DEPARTMENTS).forEach((group) => {
+        departmentScores[group] = 0;
+      });
+  
+      results.forEach(({ _id: department, totalScore }) => {
+        for (const [group, departments] of Object.entries(DEPARTMENTS)) {
+          if (departments.includes(department)) {
+            departmentScores[group] += totalScore;
+            break;
+          }
         }
-      }
-    });
+      });
+
 
     return {
+      lastCount: lastCount.seq,
       topScorers,
       departmentScores,
     };
