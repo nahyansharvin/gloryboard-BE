@@ -1,5 +1,5 @@
-import { User } from "../models/user.models";
-import { asyncHandler } from "../utils/asyncHandler";
+import { User } from "../models/user.models.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 const registerAdmin = asyncHandler(async (req, res) => {
   const requiredFields = [

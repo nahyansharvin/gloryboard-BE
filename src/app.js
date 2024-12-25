@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import healthcheckRouter  from "./routes/healthcheck.routes.js";
-import userRouter from './routes/user.routes.js'
+import repRouter from './routes/rep.routes.js'
 import adminRouter from './routes/admin.routes.js'
 import { errorHandler } from "./middlewares/error.middlewares.js";
 
@@ -36,7 +36,7 @@ app.use(cookieParser());
 app.use("/", healthcheckRouter);
 app.use("/api/v1/healthcheck", healthcheckRouter)
 app.use("/api/v1/admin", adminRouter);
-app.use("/api/v1/users", userRouter);
+app.use("/api/v1/users", repRouter);
 
 app.use("*" , (req, res) => {
   res.status(404).json({ message: "Route not found" });
