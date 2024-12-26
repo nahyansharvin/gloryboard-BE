@@ -38,7 +38,7 @@ app.use("/", healthcheckRouter);
 app.use("/api/v1" , publicRouter);
 app.use("/api/v1/healthcheck", healthcheckRouter)
 app.use("/api/v1/admin", adminRouter);
-app.use("/api/v1/users", repRouter);
+app.use("/api/v1/rep", repRouter);
 
 
 app.use("*" , (req, res) => {
