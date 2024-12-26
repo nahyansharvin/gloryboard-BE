@@ -25,3 +25,5 @@ router
   .get(resultController.fetchResultByEventId);
 
 router.route("/departments").get(userController.fetchDepartments);
+
+export default router;
