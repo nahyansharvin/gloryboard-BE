@@ -5,6 +5,7 @@ import { eventTypeController } from "../controllers/eventType.controller.js";
 import { eventController } from "../controllers/event.controller.js";
 import { eventRegistrationController } from "../controllers/eventRegistration.controller.js";
 import { resultController } from "../controllers/result.controller.js";
+import { pdfExportController } from "../controllers/pdfExport.controller.js";
 
 const router = Router();
 
@@ -38,5 +39,8 @@ router.route("/event-registration/delete/:id").delete(eventRegistrationControlle
 router.route("/result").post(resultController.createResult);
 router.route("/result/update/:id").put(resultController.updateResult);
 router.route("/result/delete/:id").delete(resultController.deleteResult);
+
+// PDF export routes
+router.route("/export/participant-tickets").get(pdfExportController.getParticipantTickets);
 
 export default router;
